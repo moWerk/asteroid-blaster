@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 - Florent Revest <revestflo@gmail.com>
+ * Copyright (C) 2025 - Timo Könnecke <github.com/eLtMosen>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,8 +16,13 @@
  */
 
 #include <asteroidapp.h>
+#include <QtQml>
+#include "GameStorage.h"
 
 int main(int argc, char *argv[])
 {
+    qmlRegisterSingletonType<GameStorage>(
+        "org.asteroid.blaster", 1, 0, "GameStorage",
+        GameStorage::qmlInstance);
     return AsteroidApp::main(argc, argv);
 }
