@@ -216,7 +216,7 @@ Item {
                     "directionX":  Math.sin(a),
                     "directionY": -Math.cos(a),
                     "rotation":    playerRotation + ai * 90,
-                    "shotColor":   isPierce ? "#DDCC00" : activePowerup !== "" ? glowColor : "#00FFFF",
+                    "shotColor":   isPierce ? "#DDCC00" : activePowerup === "rapid" ? "#AA44FF" : activePowerup === "triple" ? "#00CC44" : activePowerup === "frenzy" ? "#FFAA00" : activePowerup === "wide" ? "#FF44AA" : "#00FFFF",
                     "piercing":    isPierce
                 })
                 activeShots.push(shot)
@@ -229,14 +229,14 @@ Item {
                     "x": ox, "y": oy,
                     "directionX": Math.sin(aL), "directionY": -Math.cos(aL),
                     "rotation":   playerRotation - balance.wideShotAngle,
-                    "shotColor":  "#FF8800",
+                    "shotColor":  "#FF44AA",
                     "speed":      balance.shotSpeed * balance.wideShotSpeedMult
                 })
                 var sR = autoFireShotComponent.createObject(gameArea, {
                     "x": ox, "y": oy,
                     "directionX": Math.sin(aR), "directionY": -Math.cos(aR),
                     "rotation":   playerRotation + balance.wideShotAngle,
-                    "shotColor":  "#FF8800",
+                    "shotColor":  "#FF44AA",
                     "speed":      balance.shotSpeed * balance.wideShotSpeedMult
                 })
                 activeShots.push(sL)
@@ -1106,10 +1106,11 @@ Item {
         if (ufoObject) {
             var idx = activeAsteroids.indexOf(ufoObject)
             if (idx !== -1) activeAsteroids.splice(idx, 1)
-            ufoObject.destroy()
-            ufoObject = null
+                ufoObject.destroy()
+                ufoObject = null
         }
         ufoActive = false
+        if (!gameOver) ufoSpawnTimer.restart()
     }
 
     // ── Power-ups ─────────────────────────────────────────────────────────────
@@ -1144,13 +1145,15 @@ Item {
     function activatePowerup(type, color) {
         if (type === "nuke") {
             nukeField()
+            // still need powerupTimer to fire so UFO cooldown triggers
+            powerupTimer.interval = 500
+            powerupTimer.restart()
             return
         }
         if (type === "shield") {
             shield += 1
-            activePowerup = "shield"
-            glowColor = color
-            powerupTimer.interval = 2000
+            // instant effect — no activePowerup so laser stays cyan, no glow
+            powerupTimer.interval = 500
             powerupTimer.restart()
             return
         }
@@ -1250,7 +1253,6 @@ Item {
             spawnLargeAsteroid()
             asteroidsSpawned++
             asteroidSpawnTimer.restart()
-            if (!ufoActive) ufoSpawnTimer.restart()
         }
     }
 
