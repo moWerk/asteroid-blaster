@@ -83,7 +83,7 @@ Item {
     //   shield = 2  (rare)
     //   nuke   = 1  (very rare, ~1/10 of a normal slot)
     readonly property var powerupTypes:   ["wide",    "rapid",   "triple",  "pierce",  "frenzy",  "shield",  "nuke"   ]
-    readonly property var powerupColors:  ["#FF8800", "#FF2200", "#00CC44", "#DDCC00", "#FFAA00", "#AA44FF", "#FFFFFF" ]
+    readonly property var powerupColors:  ["#FF8800", "#AA44FF", "#00CC44", "#DDCC00", "#FFAA00", "#DD1155", "#FFFFFF" ]
     readonly property var powerupWeights: [10,         10,        10,        10,        10,         2,         1       ]
 
     // ── Geometry ──────────────────────────────────────────────────────────────

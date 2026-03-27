@@ -41,7 +41,7 @@ Item {
         readonly property int   spawnIntervalFloor:    300
         readonly property int   spawnIntervalStep:     131
         readonly property int   midAsteroidCap:        10
-        readonly property int   smallAsteroidCap:      20
+        readonly property int   smallAsteroidCap:      100
 
         // Asteroid movement
         readonly property real  largeSpeed:            0.27
@@ -78,6 +78,7 @@ Item {
 
         // Power-ups
         readonly property int   powerupDuration:       10000
+        readonly property real  pierceFourwayFireMult: 1.333  // 25% slower: 150ms * 1.333 = 200ms
 
         // Physics
         readonly property real  playerProximityRange:  20
@@ -193,7 +194,7 @@ Item {
 
     Timer {
         id: autoFireTimer
-        interval: activePowerup === "rapid" ? balance.rapidFireInterval : balance.fireInterval
+        interval: activePowerup === "rapid" ? balance.rapidFireInterval : activePowerup === "pierce" ? Math.round(balance.fireInterval * balance.pierceFourwayFireMult) : balance.fireInterval
         running: !gameOver && !calibrating && !paused
         repeat: true
         onTriggered: {
@@ -203,14 +204,23 @@ Item {
             var ox = shotX + Math.sin(rad) * (dimsFactor * balance.shotSpawnOffset)
             var oy = shotY - Math.cos(rad) * (dimsFactor * balance.shotSpawnOffset)
 
-            var shot = autoFireShotComponent.createObject(gameArea, {
-                "x": ox, "y": oy,
-                "directionX":  Math.sin(rad),
-                "directionY": -Math.cos(rad),
-                "rotation":    playerRotation,
-                "piercing":    activePowerup === "pierce"
-            })
-            activeShots.push(shot)
+            var isPierce = activePowerup === "pierce"
+            var angles = isPierce ? [rad, rad + Math.PI * 0.5, rad + Math.PI, rad + Math.PI * 1.5]
+                                  : [rad]
+            for (var ai = 0; ai < angles.length; ai++) {
+                var a = angles[ai]
+                var sox = shotX + Math.sin(a) * (dimsFactor * balance.shotSpawnOffset)
+                var soy = shotY - Math.cos(a) * (dimsFactor * balance.shotSpawnOffset)
+                var shot = autoFireShotComponent.createObject(gameArea, {
+                    "x": sox, "y": soy,
+                    "directionX":  Math.sin(a),
+                    "directionY": -Math.cos(a),
+                    "rotation":    playerRotation + ai * 90,
+                    "shotColor":   isPierce ? "#DDCC00" : activePowerup !== "" ? glowColor : "#00FFFF",
+                    "piercing":    isPierce
+                })
+                activeShots.push(shot)
+            }
 
             if (activePowerup === "wide") {
                 var aL = rad - balance.wideShotAngle * Math.PI / 180
@@ -1231,7 +1241,7 @@ Item {
     function checkLevelComplete() {
         var waveCount = 0
         for (var i = 0; i < activeAsteroids.length; i++) {
-            if (!activeAsteroids[i].isUfo) waveCount++
+            if (!activeAsteroids[i].isUfo && activeAsteroids[i].asteroidSize !== "small") waveCount++
         }
         if (waveCount === 0 && asteroidsSpawned >= initialAsteroidsToSpawn) {
             level++
