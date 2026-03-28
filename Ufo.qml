@@ -84,7 +84,7 @@ Item {
     //   nuke   = 1  (very rare, ~1/10 of a normal slot)
     readonly property var powerupTypes:   ["wide",    "rapid",   "triple",  "pierce",  "frenzy",  "shield",  "nuke"   ]
     readonly property var powerupColors:  ["#FF44AA", "#AA44FF", "#00CC44", "#DDCC00", "#FFAA00", "#DD1155", "#FFFFFF" ]
-    readonly property var powerupWeights: [10,         10,        10,        10,        10,         2,         1       ]
+    readonly property var powerupWeights: [10,         10,        10,        8,        8,         6,         6       ]
 
     // ── Geometry ──────────────────────────────────────────────────────────────
     // SVG natural dimensions after junction snapping: 35.082 × 22.758
@@ -96,10 +96,10 @@ Item {
     z: 3
 
     // ── Color cycling ─────────────────────────────────────────────────────────
-    // Picks a new weighted-random power-up every 4 s.
+    // Picks a new weighted-random power-up every 3 s.
     // Paused while dimmed or in cooldown — UFO stays grey for the full duration.
     Timer {
-        interval: 4000
+        interval: 3000
         running:  !ufo.dimmed && !ufo.paused && !ufo.gameOver && !ufo.calibrating
         repeat:   true
         onTriggered: ufo.colorIndex = ufo.nextColorIndex()
@@ -129,8 +129,8 @@ Item {
     SequentialAnimation on cooldownBrightness {
         running: ufo.cooldown && !ufo.paused && !ufo.gameOver
         loops:   Animation.Infinite
-        NumberAnimation { to: 1.0; duration: 600; easing.type: Easing.InOutSine }
-        NumberAnimation { to: 0.1; duration: 600; easing.type: Easing.InOutSine }
+        NumberAnimation { to: 0.9; duration: 600; easing.type: Easing.InOutSine }
+        NumberAnimation { to: 0.2; duration: 600; easing.type: Easing.InOutSine }
     }
 
     // Force cooldownBrightness into the dependency graph unconditionally by

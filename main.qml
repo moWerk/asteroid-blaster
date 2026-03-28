@@ -51,9 +51,9 @@ Item {
         readonly property real  rotationSpeedVariance: 1
 
         // UFO
-        readonly property real  ufoSpeed:              0.80   // fast, hard to track
+        readonly property real  ufoSpeed:              1   // fast, hard to track
         readonly property int   ufoSpawnDelay:         4000
-        readonly property int   ufoCooldownDuration:   10000  // ms of grey pulsing after power-up
+        readonly property int   ufoCooldownDuration:   12000  // ms of grey pulsing after power-up
 
         // Player
         readonly property real  tiltSmoothing:         0.5
@@ -61,7 +61,7 @@ Item {
         readonly property int   startingShields:       3
 
         // Shooting
-        readonly property int   fireInterval:          150
+        readonly property int   fireInterval:          160
         readonly property int   rapidFireInterval:     60
         readonly property real  shotSpeed:             8
         readonly property real  shotSpawnOffset:       5
@@ -77,7 +77,7 @@ Item {
         readonly property real  perimeterRadius:       27.5
 
         // Power-ups
-        readonly property int   powerupDuration:       10000
+        readonly property int   powerupDuration:       12000
         readonly property real  pierceFourwayFireMult: 1.333  // 25% slower: 150ms * 1.333 = 200ms
 
         // Physics
@@ -87,7 +87,7 @@ Item {
 
     // ── Mutable game state ────────────────────────────────────────────────────
     property bool calibrating: true
-    property int  calibrationTimer: 4
+    property int  calibrationTimer: 3
     property bool debugMode: false
     property bool gameOver: false
     property int  level: 1
@@ -113,11 +113,14 @@ Item {
     property var  ufoObject: null
     // Canonical UFO size — used in spawnUfo() and handleUfoHit()
     // so the value is defined exactly once.
-    readonly property real ufoSize: dimsFactor * 6
+    readonly property real ufoSize: dimsFactor * 8
 
     // Power-up state
     property string activePowerup: ""
     property color  glowColor: "#00000000"
+    // powerupLabel is never cleared so text stays readable through popup fade-out
+    property string powerupLabel: ""
+    property bool   popupActive: false
 
     NonGraphicalFeedback {
         id: feedback
@@ -347,8 +350,8 @@ Item {
                 if (asteroidSize === dimsFactor * 6)  return 1.333
                 return 1.0
             }
-            width:  Math.round(asteroidSize * 2.33 * sizeMultiplier)
-            height: Math.round(asteroidSize * 2.33 * sizeMultiplier)
+            width:  Math.round(asteroidSize * 2 * sizeMultiplier)
+            height: Math.round(asteroidSize * 2 * sizeMultiplier)
             z: 0
 
             property real      time: 0.0
@@ -398,7 +401,7 @@ Item {
                     highp vec3 color = vec3(0.0);
                     highp float totalAlpha = 0.0;
 
-                    for (int i = 0; i < 16; i++) {
+                    for (int i = 0; i < 12; i++) {
                         highp float angle = float(i) * 0.3927 + noise(vec2(float(i), time)) * 0.4;
                         highp float speed = 0.8 + noise(vec2(float(i) + 1.0, time)) * 0.4;
                         highp float radius = speed * time;
@@ -670,18 +673,88 @@ Item {
             Text {
                 id: levelNumber
                 text: level
-                color: "#F9DC5C"
+                color: "#00FFFF"
                 font { pixelSize: dimsFactor * 12; family: "Teko"; styleName: "SemiBold" }
                 anchors { top: root.top; horizontalCenter: parent.horizontalCenter }
                 z: 4
                 visible: !calibrating
             }
 
+            // ── Power-up bar — duration indicator below level number ──────────
+            // Pill shrinks from full to zero over powerupDuration.
+            // Hidden for instant power-ups (nuke, shield).
+            Item {
+                id: powerupBarContainer
+                width: dimsFactor * 40
+                height: dimsFactor * 3
+                anchors {
+                    top: levelNumber.bottom
+                    topMargin: -dimsFactor * 1.4
+                    horizontalCenter: parent.horizontalCenter
+                }
+                z: 4
+                visible: !calibrating && !gameOver && activePowerup !== "" && activePowerup !== "shield"
+
+                // Track background
+                Rectangle {
+                    anchors.fill: parent
+                    radius: height / 2
+                    color: Qt.rgba(1, 1, 1, 0.15)
+                }
+
+                // Fill pill — width animated by NumberAnimation restarted in activatePowerup()
+                Rectangle {
+                    id: powerupBarFill
+                    width: powerupBarContainer.width
+                    height: parent.height
+                    radius: height / 2
+                    color: glowColor
+                    Behavior on color { ColorAnimation { duration: 150 } }
+                }
+
+                NumberAnimation {
+                    id: powerupBarAnim
+                    target: powerupBarFill
+                    property: "width"
+                    from: powerupBarContainer.width
+                    to: 0
+                    duration: balance.powerupDuration
+                    easing.type: Easing.Linear
+                }
+            }
+
+            // ── Power-up popup — arcade flash below player on activation ──────
+            // Snaps in at opacity 1, holds 800ms, fades over 400ms.
+            // powerupLabel is set before popupActive toggles so text is always valid.
+            Text {
+                id: powerupPopup
+                text: powerupLabel
+                color: glowColor
+                font { pixelSize: dimsFactor * 14; family: "Teko"; styleName: "Bold"; letterSpacing: dimsFactor * 0.3 }
+                anchors {
+                    bottom: scoreText.top
+                    bottomMargin: -dimsFactor * 5
+                    horizontalCenter: parent.horizontalCenter
+                }
+                z: 5
+                opacity: 0
+                visible: !calibrating && !gameOver
+
+                SequentialAnimation {
+                    id: popupAnim
+                    NumberAnimation { target: powerupPopup; property: "opacity"; to: 0.8; duration: 100 }                    NumberAnimation { target: powerupPopup; property: "opacity"; to: 0.4; duration: 100 }                    NumberAnimation { target: powerupPopup; property: "opacity"; to: 0.9; duration: 100 }
+                    NumberAnimation { target: powerupPopup; property: "opacity"; to: 7.0; duration: 100 }
+                    NumberAnimation { target: powerupPopup; property: "opacity"; to: 0.9; duration: 100 }
+                    PauseAnimation  { duration: 1600 }
+                    NumberAnimation { target: powerupPopup; property: "opacity"; to: 0.0; duration: 400; easing.type: Easing.InQuad }
+                }
+            }
+
             Text {
                 id: scoreText
                 text: score
-                color: activePowerup === "frenzy" ? "#FFAA00" : "#00FFFF"
-                font { pixelSize: dimsFactor * 13; family: "Teko"; styleName: "Light" }
+                color: "#FFAA00"
+                font { pixelSize: dimsFactor * 13; family: "Teko"; styleName: activePowerup === "frenzy" ? "Bold" : "Light" }
                 anchors {
                     bottom: shieldText.top
                     bottomMargin: -dimsFactor * 8
@@ -699,7 +772,7 @@ Item {
                 font { pixelSize: dimsFactor * 12; family: "Teko"; styleName: "SemiBold" }
                 anchors {
                     bottom: parent.bottom
-                    bottomMargin: -dimsFactor * 6
+                    bottomMargin: -dimsFactor * 5
                     horizontalCenter: parent.horizontalCenter
                 }
                 z: 4
@@ -1143,22 +1216,39 @@ Item {
     }
 
     function activatePowerup(type, color) {
+        // Name table for popup label
+        var labels = {
+            "wide":   "WIDE RAZZ",
+            "rapid":  "RAPID HYPE",
+            "triple": "TRIPLE DANK",
+            "pierce": "QUAD PIERCE",
+            "frenzy": "SCORE FRENZY",
+            "shield": "THICCER SHIELD",
+            "nuke":   "NUKE WIPE"
+        }
+
+        powerupLabel = labels[type] || type.toUpperCase()
+        popupAnim.restart()
+
         if (type === "nuke") {
+            glowColor = color
             nukeField()
-            // still need powerupTimer to fire so UFO cooldown triggers
             powerupTimer.interval = 500
             powerupTimer.restart()
             return
         }
         if (type === "shield") {
             shield += 1
-            // instant effect — no activePowerup so laser stays cyan, no glow
+            glowColor = color
             powerupTimer.interval = 500
             powerupTimer.restart()
             return
         }
         activePowerup = type
         glowColor = color
+        powerupBarFill.width = powerupBarContainer.width
+        powerupBarAnim.duration = balance.powerupDuration
+        powerupBarAnim.restart()
         powerupTimer.interval = balance.powerupDuration
         powerupTimer.restart()
     }
@@ -1457,6 +1547,7 @@ Item {
         powerupTimer.stop()
         activePowerup = ""
         glowColor = "#00000000"
+        powerupLabel = ""
 
         // destroyUfo() also stops ufoCooldownTimer
         destroyUfo()
