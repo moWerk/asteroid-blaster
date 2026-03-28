@@ -3,5 +3,7 @@
 <qresource prefix="/">
     <file>main.qml</file>
     <file>Ufo.qml</file>
+    <file>ExplosionShader.qml</file>
+    <file>ScoreParticle.qml</file>    
 </qresource>
 </RCC>

@@ -51,9 +51,9 @@ Item {
         readonly property real  rotationSpeedVariance: 1
 
         // UFO
-        readonly property real  ufoSpeed:              1   // fast, hard to track
+        readonly property real  ufoSpeed:              1
         readonly property int   ufoSpawnDelay:         4000
-        readonly property int   ufoCooldownDuration:   12000  // ms of grey pulsing after power-up
+        readonly property int   ufoCooldownDuration:   12000
 
         // Player
         readonly property real  tiltSmoothing:         0.5
@@ -79,7 +79,7 @@ Item {
 
         // Power-ups
         readonly property int   powerupDuration:       12000
-        readonly property real  pierceFourwayFireMult: 1.333  // 25% slower: 150ms * 1.333 = 200ms
+        readonly property real  pierceFourwayFireMult: 1.333
 
         // Physics
         readonly property real  playerProximityRange:  20
@@ -112,18 +112,13 @@ Item {
     // UFO state
     property bool ufoActive: false
     property var  ufoObject: null
-
-    // Canonical UFO size — used in spawnUfo() and handleUfoHit()
-    // so the value is defined exactly once.
     readonly property real ufoSize: dimsFactor * 8
 
     // Power-up state
     property string activePowerup: ""
     property color  glowColor: "#00000000"
-    // powerupLabel is never cleared so text stays readable through popup fade-out
     property string powerupLabel: ""
     property string unlockLabel: ""
-    property bool   unlockVisible: false
     property bool   popupActive: false
 
     NonGraphicalFeedback {
@@ -218,7 +213,7 @@ Item {
                 var a = angles[ai]
                 var sox = shotX + Math.sin(a) * (dimsFactor * balance.shotSpawnOffset)
                 var soy = shotY - Math.cos(a) * (dimsFactor * balance.shotSpawnOffset)
-                var shot = autoFireShotComponent.createObject(gameArea, {
+                var shot = autoFireShotComponent.createObject(shotLayer, {
                     "x": sox, "y": soy,
                     "directionX":  Math.sin(a),
                     "directionY": -Math.cos(a),
@@ -232,14 +227,14 @@ Item {
             if (activePowerup === "wide") {
                 var aL = rad - balance.wideShotAngle * Math.PI / 180
                 var aR = rad + balance.wideShotAngle * Math.PI / 180
-                var sL = autoFireShotComponent.createObject(gameArea, {
+                var sL = autoFireShotComponent.createObject(shotLayer, {
                     "x": ox, "y": oy,
                     "directionX": Math.sin(aL), "directionY": -Math.cos(aL),
                     "rotation":   playerRotation - balance.wideShotAngle,
                     "shotColor":  "#FF44AA",
                     "speed":      balance.shotSpeed * balance.wideShotSpeedMult
                 })
-                var sR = autoFireShotComponent.createObject(gameArea, {
+                var sR = autoFireShotComponent.createObject(shotLayer, {
                     "x": ox, "y": oy,
                     "directionX": Math.sin(aR), "directionY": -Math.cos(aR),
                     "rotation":   playerRotation + balance.wideShotAngle,
@@ -254,44 +249,42 @@ Item {
                 var perpX  = Math.cos(rad)
                 var perpY  = Math.sin(rad)
                 var spread = dimsFactor * balance.tripleShotSpread
-                var sTL = autoFireShotComponent.createObject(gameArea, {
+                var sTL = autoFireShotComponent.createObject(shotLayer, {
                     "x": ox - perpX * spread, "y": oy - perpY * spread,
                     "directionX":  Math.sin(rad), "directionY": -Math.cos(rad),
                     "rotation":    playerRotation,
-                    "shotColor":   "#00CC44"
+                    "shotColor":   "#33FF66"
                 })
-                var sTR = autoFireShotComponent.createObject(gameArea, {
+                var sTR = autoFireShotComponent.createObject(shotLayer, {
                     "x": ox + perpX * spread, "y": oy + perpY * spread,
                     "directionX":  Math.sin(rad), "directionY": -Math.cos(rad),
                     "rotation":    playerRotation,
-                    "shotColor":   "#00CC44"
+                    "shotColor":   "#33FF66"
                 })
                 activeShots.push(sTL)
                 activeShots.push(sTR)
             }
-            
+
             if (activePowerup === "laser") {
-                // Replace centre shot with long beam — pop the normal one and spawn beam
                 var removed = activeShots.pop()
                 if (removed) removed.destroy()
-                    var beam = autoFireShotComponent.createObject(gameArea, {
-                        "x": sox - dimsFactor * 1,
-                        "y": soy - dimsFactor * 50,
-                        "directionX":  Math.sin(rad),
-                        "directionY": -Math.cos(rad),
-                        "rotation":    playerRotation,
-                        "transformOrigin": Item.Bottom,
-                        "shotColor":   "#00FFAA",
-                        "width":       dimsFactor * 2,
-                        "height":      dimsFactor * 50,
-                        "speed":       balance.shotSpeed * 5,
-                        "piercing":    true
-                    })
-                    activeShots.push(beam)
+                var beam = autoFireShotComponent.createObject(shotLayer, {
+                    "x": sox - dimsFactor * 1,
+                    "y": soy - dimsFactor * 50,
+                    "directionX":  Math.sin(rad),
+                    "directionY": -Math.cos(rad),
+                    "rotation":    playerRotation,
+                    "transformOrigin": Item.Bottom,
+                    "shotColor":   "#00FFAA",
+                    "width":       dimsFactor * 2,
+                    "height":      dimsFactor * 50,
+                    "speed":       balance.shotSpeed * 5,
+                    "piercing":    true
+                })
+                activeShots.push(beam)
             }
-            
+
             if (activePowerup === "chain") {
-                // Mark the centre shot as a chaining bolt
                 var cs = activeShots[activeShots.length - 1]
                 if (cs) {
                     cs.chaining   = true
@@ -327,9 +320,6 @@ Item {
         }
     }
 
-    // Power-up duration timer.
-    // On expiry: clears player effect and hands off to ufoCooldownTimer.
-    // Does NOT re-enable UFO hit detection — that is ufoCooldownTimer's job.
     Timer {
         id: powerupTimer
         interval: balance.powerupDuration
@@ -338,23 +328,18 @@ Item {
             activePowerup = ""
             glowColor = "#00000000"
             if (ufoObject) {
-                // Transition UFO from flat grey → pulsing cooldown
                 ufoObject.cooldown = true
                 ufoCooldownTimer.restart()
             }
         }
     }
 
-    // 10 s cooldown after power-up expires.
-    // UFO pulses grey during this window (handled in Ufo.qml).
-    // On expiry: pick a fresh random color and re-enable hit detection.
     Timer {
         id: ufoCooldownTimer
         interval: balance.ufoCooldownDuration
         repeat: false
         onTriggered: {
             if (ufoObject) {
-                // Pick new random index now — it is revealed by clearing dimmed
                 ufoObject.colorIndex = ufoObject.nextColorIndex()
                 ufoObject.cooldown = false
                 ufoObject.dimmed = false
@@ -377,93 +362,7 @@ Item {
 
     Component {
         id: explosionParticleComponent
-        ShaderEffect {
-            id: explosion
-            property real     asteroidSize: dimsFactor * 18
-            property string   explosionColor: "default"
-            property real     sizeMultiplier: {
-                if (asteroidSize === dimsFactor * 20) return 1.0
-                if (asteroidSize === dimsFactor * 12) return 1.25
-                if (asteroidSize === dimsFactor * 6)  return 1.333
-                return 1.0
-            }
-            width:  Math.round(asteroidSize * 2 * sizeMultiplier)
-            height: Math.round(asteroidSize * 2 * sizeMultiplier)
-            z: 0
-
-            property real      time: 0.0
-            property vector3d  customColor: Qt.vector3d(1.0, 0.667, 0.2)
-            property vector3d  baseColor: {
-                if (explosionColor === "shield") return Qt.vector3d(0.2, 0.6, 1.0)
-                if (explosionColor === "nuke")   return Qt.vector3d(1.0, 1.0, 1.0)
-                if (explosionColor === "custom") return customColor
-                return Qt.vector3d(1.0, 0.667, 0.2)
-            }
-
-            NumberAnimation on time {
-                from: 0.0; to: 1.0
-                duration: 1000
-                running: true
-                easing.type: Easing.Linear
-                onRunningChanged: {
-                    if (!running && time >= 1.0) explosion.destroy()
-                }
-            }
-
-            vertexShader: "
-                uniform highp mat4 qt_Matrix;
-                attribute highp vec4 qt_Vertex;
-                attribute highp vec2 qt_MultiTexCoord0;
-                varying highp vec2 coord;
-                void main() {
-                    coord = qt_MultiTexCoord0;
-                    gl_Position = qt_Matrix * qt_Vertex;
-                }
-            "
-
-            fragmentShader: "
-                varying highp vec2 coord;
-                uniform highp float time;
-                uniform highp vec3 baseColor;
-                uniform highp float qt_Opacity;
-
-                highp float noise(highp vec2 p) {
-                    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
-                }
-
-                void main() {
-                    highp vec2 uv = coord - vec2(0.5);
-                    highp float dist = length(uv);
-                    highp float fade = 1.0 - time;
-                    highp vec3 color = vec3(0.0);
-                    highp float totalAlpha = 0.0;
-
-                    for (int i = 0; i < 12; i++) {
-                        highp float angle = float(i) * 0.3927 + noise(vec2(float(i), time)) * 0.4;
-                        highp float speed = 0.8 + noise(vec2(float(i) + 1.0, time)) * 0.4;
-                        highp float radius = speed * time;
-                        highp vec2 particlePos = vec2(cos(angle), sin(angle)) * radius;
-                        highp float swirl = time * 3.0 * (noise(vec2(float(i), 0.0)) - 0.5);
-                        particlePos += vec2(cos(swirl), sin(swirl)) * 0.1;
-                        highp float particleDist = length(uv - particlePos);
-                        highp float particleSize = 0.08 * (1.0 - time * 0.3);
-                        if (particleDist < particleSize) {
-                            highp float intensity = 1.0 - (particleDist / particleSize);
-                            color += mix(vec3(1.0, 0.6, 0.2), baseColor, time) * intensity * intensity * fade;
-                            totalAlpha += intensity * fade;
-                        }
-                    }
-                    highp float coreDist = dist * (1.0 + time);
-                    if (coreDist < 0.3) {
-                        highp float coreIntensity = 1.0 - (coreDist / 0.3);
-                        color += mix(vec3(1.0, 0.9, 0.6), baseColor, time) * coreIntensity * fade * 0.9;
-                        totalAlpha += coreIntensity * fade;
-                    }
-                    color = clamp(color * 2.0, vec3(0.0), vec3(1.0));
-                    gl_FragColor = vec4(color, totalAlpha * qt_Opacity);
-                }
-            "
-        }
+        ExplosionShader { }
     }
 
     Component {
@@ -472,7 +371,6 @@ Item {
             width:     dimsFactor * 1
             height:    dimsFactor * 4
             color:     shotColor
-            z: 2
             visible:   true
             property string shotColor:  "#00FFFF"
             property real   speed:      balance.shotSpeed
@@ -484,26 +382,10 @@ Item {
             rotation: playerRotation
         }
     }
-    
+
     Component {
         id: scoreParticleComponent
-        Text {
-            id: particle
-            color: "#00FFFF"
-            font { pixelSize: dimsFactor * 8; family: "Teko"; styleName: "Medium" }
-            z: 6
-            opacity: 1.0
-            Behavior on opacity {
-                NumberAnimation {
-                    duration: 2000
-                    easing.type: Easing.InOutQuad
-                    onRunningChanged: {
-                        if (!running && opacity === 0) particle.destroy()
-                    }
-                }
-            }
-            Component.onCompleted: { opacity = 0 }
-        }
+        ScoreParticle { }
     }
 
     Component {
@@ -528,7 +410,6 @@ Item {
                    - balance.rotationSpeedVariance)
             width:  size
             height: size
-            z: 3
 
             property var asteroidPoints: {
                 var basePoints  = Math.floor(5 + Math.random() * 3)
@@ -595,17 +476,34 @@ Item {
     }
 
     // ── Scene ─────────────────────────────────────────────────────────────────
+    // Paint order via declaration order only — no z: values anywhere.
+    // Layer Items (shotLayer, asteroidLayer, vfxLayer) are named insertion
+    // points for dynamically created objects. Their declaration position
+    // in gameContent determines when they paint relative to static items.
+    //
+    // Bottom → top within gameContent:
+    //   scorePerimeter  — bonus zone circle
+    //   shotLayer       — shots
+    //   playerContainer — glow (first child) then ship (second child)
+    //   asteroidLayer   — asteroids + UFO
+    //   vfxLayer        — explosions + score particles
+    //   HUD             — level, bar, unlock, popup, score, shield
+    //   calibrationContainer
+    //   dimmingLayer
+    //   pauseText + debug
+    //
+    // gameOverContainer is a sibling to gameContent declared after it,
+    // so it always paints on top without any z: needed.
 
     Item {
         id: gameArea
         anchors.fill: parent
 
+        // Solid black background — first child of gameArea, paints behind everything.
+        // No layer.enabled or clip on a solid fill-parent Rectangle.
         Rectangle {
             anchors.fill: parent
             color: "black"
-            layer.enabled: true
-            clip: true
-            z: -1
         }
 
         Item {
@@ -621,7 +519,6 @@ Item {
                 border.color: "#0860C4"
                 border.width: 1
                 anchors.centerIn: parent
-                z: 0
                 visible: !calibrating
                 Behavior on border.color { ColorAnimation { duration: 1000; easing.type: Easing.OutQuad } }
                 Behavior on color        { ColorAnimation { duration: 1000; easing.type: Easing.OutQuad } }
@@ -638,10 +535,14 @@ Item {
             }
 
             Item {
+                id: shotLayer
+                anchors.fill: parent
+            }
+
+            Item {
                 id: playerContainer
                 x: root.width  / 2 - player.width  / 2 + dimsFactor * 5
                 y: root.height / 2 - player.height / 2 + dimsFactor * 5
-                z: 1
                 visible: !calibrating
 
                 Rectangle {
@@ -709,19 +610,27 @@ Item {
                 }
             }
 
+            Item {
+                id: asteroidLayer
+                anchors.fill: parent
+            }
+
+            Item {
+                id: vfxLayer
+                anchors.fill: parent
+            }
+
+            // ── HUD ───────────────────────────────────────────────────────────
+
             Text {
                 id: levelNumber
                 text: level
                 color: "#00FFFF"
                 font { pixelSize: dimsFactor * 12; family: "Teko"; styleName: "SemiBold" }
                 anchors { top: root.top; horizontalCenter: parent.horizontalCenter }
-                z: 4
                 visible: !calibrating
             }
 
-            // ── Power-up bar — duration indicator below level number ──────────
-            // Pill shrinks from full to zero over powerupDuration.
-            // Hidden for instant power-ups (nuke, shield).
             Item {
                 id: powerupBarContainer
                 width: dimsFactor * 40
@@ -731,17 +640,14 @@ Item {
                     topMargin: -dimsFactor * 1.4
                     horizontalCenter: parent.horizontalCenter
                 }
-                z: 4
                 visible: !calibrating && !gameOver && activePowerup !== "" && activePowerup !== "shield"
 
-                // Track background
                 Rectangle {
                     anchors.fill: parent
                     radius: height / 2
                     color: Qt.rgba(1, 1, 1, 0.15)
                 }
-               
-                // Fill pill — width animated by NumberAnimation restarted in activatePowerup()
+
                 Rectangle {
                     id: powerupBarFill
                     width: powerupBarContainer.width
@@ -762,7 +668,6 @@ Item {
                 }
             }
 
-            // ── Power-up unlock notification — flashes below power-up bar on level up ──
             Text {
                 id: powerupUnlock
                 text: unlockLabel
@@ -773,10 +678,9 @@ Item {
                     topMargin: dimsFactor * 5
                     horizontalCenter: parent.horizontalCenter
                 }
-                z: 5
                 opacity: 0
                 visible: !calibrating && !gameOver
-                
+
                 SequentialAnimation {
                     id: unlockAnim
                     NumberAnimation { target: powerupUnlock; property: "opacity"; to: 0.9; duration: 200 }
@@ -784,11 +688,7 @@ Item {
                     NumberAnimation { target: powerupUnlock; property: "opacity"; to: 0.0; duration: 800; easing.type: Easing.InQuad }
                 }
             }
-            
-            
-            // ── Power-up popup — arcade flash below player on activation ──────
-            // Snaps in at opacity 1, holds 800ms, fades over 400ms.
-            // powerupLabel is set before popupActive toggles so text is always valid.
+
             Text {
                 id: powerupPopup
                 text: powerupLabel
@@ -799,7 +699,6 @@ Item {
                     bottomMargin: -dimsFactor * 5
                     horizontalCenter: parent.horizontalCenter
                 }
-                z: 5
                 opacity: 0
                 visible: !calibrating && !gameOver
 
@@ -808,7 +707,7 @@ Item {
                     NumberAnimation { target: powerupPopup; property: "opacity"; to: 0.8; duration: 100 }
                     NumberAnimation { target: powerupPopup; property: "opacity"; to: 0.4; duration: 50 }
                     NumberAnimation { target: powerupPopup; property: "opacity"; to: 0.9; duration: 50 }
-                    NumberAnimation { target: powerupPopup; property: "opacity"; to: 7.0; duration: 50 }
+                    NumberAnimation { target: powerupPopup; property: "opacity"; to: 1.0; duration: 50 }
                     NumberAnimation { target: powerupPopup; property: "opacity"; to: 0.9; duration: 50 }
                     PauseAnimation  { duration: 2200 }
                     NumberAnimation { target: powerupPopup; property: "opacity"; to: 0.0; duration: 400; easing.type: Easing.InQuad }
@@ -825,7 +724,6 @@ Item {
                     bottomMargin: -dimsFactor * 8
                     horizontalCenter: parent.horizontalCenter
                 }
-                z: 4
                 visible: !gameOver && !calibrating
                 Behavior on color { ColorAnimation { duration: 300 } }
             }
@@ -840,10 +738,10 @@ Item {
                     bottomMargin: -dimsFactor * 5
                     horizontalCenter: parent.horizontalCenter
                 }
-                z: 4
                 visible: !calibrating
             }
 
+            // ── Calibration ───────────────────────────────────────────────────
             Item {
                 id: calibrationContainer
                 anchors.fill: parent
@@ -902,15 +800,16 @@ Item {
                 }
             }
 
+            // ── Dimming overlay ───────────────────────────────────────────────
             Rectangle {
                 id: dimmingLayer
                 anchors.fill: parent
                 color: "#000000"
-                z: 9
                 opacity: (paused && !gameOver && !calibrating) || gameOver ? 0.6 : 0.0
                 Behavior on opacity { NumberAnimation { duration: 250; easing.type: Easing.InOutQuad } }
             }
 
+            // ── Pause + debug ─────────────────────────────────────────────────
             Text {
                 id: pauseText
                 text: "Paused"
@@ -918,7 +817,6 @@ Item {
                 font { pixelSize: dimsFactor * 22; family: "Teko" }
                 anchors.centerIn: parent
                 opacity: 0
-                z: 10
                 visible: !gameOver && !calibrating
                 Behavior on opacity { NumberAnimation { duration: 250; easing.type: Easing.InOutQuad } }
                 MouseArea {
@@ -977,7 +875,6 @@ Item {
                 text: "Debug"
                 color: "white"
                 opacity: debugMode ? 1 : 0.5
-                z: 10
                 font { pixelSize: dimsFactor * 10; bold: debugMode }
                 anchors {
                     bottom: pauseText.top
@@ -993,11 +890,11 @@ Item {
             }
         }
 
+        // ── Game over — sibling to gameContent, always paints on top ──────────
         Item {
             id: gameOverContainer
             anchors.fill: parent
             visible: gameOver
-            z: 10
 
             Text {
                 text: "Game Over"
@@ -1071,7 +968,6 @@ Item {
 
     function updateGame(deltaTime) {
 
-        // ── Shots ──────────────────────────────────────────────────────────────
         for (var si = activeShots.length - 1; si >= 0; si--) {
             var shot = activeShots[si]
             if (!shot) continue
@@ -1115,15 +1011,11 @@ Item {
             }
         }
 
-        // ── Asteroid and UFO movement ──────────────────────────────────────────
         for (var ai = activeAsteroids.length - 1; ai >= 0; ai--) {
             var obj = activeAsteroids[ai]
             if (!obj) continue
 
             if (obj.isUfo) {
-                // When the UFO reaches its final waypoint while dimmed (power-up active
-                // or cooldown running), loop back to WP1 so it keeps moving across the
-                // screen. Once dimmed clears it exits normally on the next path completion.
                 if (obj.currentWaypoint >= obj.waypoints.length) {
                     if (obj.dimmed) {
                         obj.currentWaypoint = 1
@@ -1171,7 +1063,6 @@ Item {
             }
         }
 
-        // ── Asteroid-asteroid collision pass ───────────────────────────────────
         for (var a1i = 0; a1i < activeAsteroids.length; a1i++) {
             var a1 = activeAsteroids[a1i]
             if (!a1) continue
@@ -1192,42 +1083,37 @@ Item {
         var side = Math.floor(Math.random() * 4)
         var waypoints
 
-        // 4-waypoint dramatic zigzag. UFO enters one side, dips off-screen at two
-        // intermediate waypoints, exits the opposite side. Matches the user spec:
-        //   L→R: enter x=0 y=50% → x=25% y=-25%(above) → x=50% y=100%(below) → exit x=100% y=25%
-        //   R→L: mirror
-        //   T→B / B→T: 90° rotated equivalents
-        if (side === 0) {          // enters left, exits right
+        if (side === 0) {
             waypoints = [
-                Qt.point(-ufoW,           h * 0.50),
-                Qt.point(w * 0.25,       -h * 0.25),   // dips above screen
-                Qt.point(w * 0.50,        h + ufoH),   // dips below screen
-                Qt.point(w + ufoW,        h * 0.25)
+                Qt.point(-ufoW,    h * 0.50),
+                Qt.point(w * 0.25, -h * 0.25),
+                Qt.point(w * 0.50,  h + ufoH),
+                Qt.point(w + ufoW,  h * 0.25)
             ]
-        } else if (side === 1) {   // enters top, exits bottom
+        } else if (side === 1) {
             waypoints = [
-                Qt.point(w * 0.50,        -ufoH),
-                Qt.point(w + ufoW,        h * 0.25),   // dips right of screen
-                Qt.point(-ufoW,           h * 0.50),   // dips left of screen
-                Qt.point(w * 0.75,        h + ufoH)
+                Qt.point(w * 0.50, -ufoH),
+                Qt.point(w + ufoW,  h * 0.25),
+                Qt.point(-ufoW,     h * 0.50),
+                Qt.point(w * 0.75,  h + ufoH)
             ]
-        } else if (side === 2) {   // enters right, exits left
+        } else if (side === 2) {
             waypoints = [
-                Qt.point(w + ufoW,        h * 0.50),
-                Qt.point(w * 0.75,        h + ufoH),   // dips below screen
-                Qt.point(w * 0.50,       -h * 0.25),   // dips above screen
-                Qt.point(-ufoW,           h * 0.75)
+                Qt.point(w + ufoW,  h * 0.50),
+                Qt.point(w * 0.75,  h + ufoH),
+                Qt.point(w * 0.50, -h * 0.25),
+                Qt.point(-ufoW,     h * 0.75)
             ]
-        } else {                   // enters bottom, exits top
+        } else {
             waypoints = [
-                Qt.point(w * 0.50,        h + ufoH),
-                Qt.point(-ufoW,           h * 0.75),   // dips left of screen
-                Qt.point(w + ufoW,        h * 0.50),   // dips right of screen
-                Qt.point(w * 0.25,        -ufoH)
+                Qt.point(w * 0.50,  h + ufoH),
+                Qt.point(-ufoW,     h * 0.75),
+                Qt.point(w + ufoW,  h * 0.50),
+                Qt.point(w * 0.25, -ufoH)
             ]
         }
 
-        var obj = ufoComponent.createObject(gameArea, {
+        var obj = ufoComponent.createObject(asteroidLayer, {
             "x":               waypoints[0].x - ufoW / 2,
             "y":               waypoints[0].y - ufoH / 2,
             "waypoints":       waypoints,
@@ -1238,14 +1124,13 @@ Item {
         ufoActive = true
     }
 
-    // Stops all UFO-related timers and removes the UFO from the game.
     function destroyUfo() {
         ufoCooldownTimer.stop()
         if (ufoObject) {
             var idx = activeAsteroids.indexOf(ufoObject)
             if (idx !== -1) activeAsteroids.splice(idx, 1)
-                ufoObject.destroy()
-                ufoObject = null
+            ufoObject.destroy()
+            ufoObject = null
         }
         ufoActive = false
         if (!gameOver) ufoSpawnTimer.restart()
@@ -1257,16 +1142,15 @@ Item {
         var type  = ufoRef.powerupTypes[ufoRef.colorIndex]
         var color = ufoRef.powerupColors[ufoRef.colorIndex]
 
-        // UFO goes dark — ufoCooldownTimer re-enables it after powerupTimer + cooldown
         ufoRef.dimmed = true
 
-        // Explosion sized to the actual UFO dimensions
         var cx  = ufoRef.x + ufoRef.width  / 2
         var cy  = ufoRef.y + ufoRef.height / 2
-        var sm  = 1.333   // sizeMultiplier for dimsFactor*6
-        explosionParticleComponent.createObject(gameContent, {
-            "x": cx - ufoSize * 2.33 * sm / 2,
-            "y": cy - ufoSize * 2.33 * sm / 2,
+        var sm  = 1.333
+        explosionParticleComponent.createObject(vfxLayer, {
+            "x": cx - ufoSize * 1.86 * sm / 2,
+            "y": cy - ufoSize * 1.86 * sm / 2,
+            "dimsFactor":     dimsFactor,
             "asteroidSize":   ufoSize,
             "explosionColor": "custom",
             "customColor": Qt.vector3d(
@@ -1281,19 +1165,17 @@ Item {
     }
 
     function activatePowerup(type, color) {
-        // Name table for popup label
         var labels = {
-            "wide":     "WIDE RAZZ",
-            "rapid":    "RAPID HYPE",
-            "triple":   "TRIPLE DANK",
-            "pierce":   "QUAD PIERCE",
-            "frenzy":   "SCORE FRENZY",
-            "shield":   "THICCER SHIELD",
-            "laser":    "YEET LASER",
-            "chain":    "GIB CHAIN BOLT",
-            "nuke":     "NUKE WIPE"
+            "wide":   "WIDE RAZZ",
+            "rapid":  "RAPID HYPE",
+            "triple": "TRIPLE DANK",
+            "pierce": "QUAD PIERCE",
+            "frenzy": "SCORE FRENZY",
+            "shield": "THICCER SHIELD",
+            "nuke":   "NUKE WIPE",
+            "laser":  "YEET LASER",
+            "chain":  "GIB CHAIN BOLT"
         }
-
         powerupLabel = labels[type] || type.toUpperCase()
         popupAnim.restart()
 
@@ -1325,9 +1207,10 @@ Item {
             var a = activeAsteroids[i]
             if (!a || a.isUfo) continue
             var sm = a.asteroidSize === "large" ? 1.0 : a.asteroidSize === "mid" ? 1.25 : 1.333
-            explosionParticleComponent.createObject(gameContent, {
-                "x": a.x + a.width  / 2 - a.size * 2.33 * sm / 2,
-                "y": a.y + a.height / 2 - a.size * 2.33 * sm / 2,
+            explosionParticleComponent.createObject(vfxLayer, {
+                "x": a.x + a.width  / 2 - a.size * 1.86 * sm / 2,
+                "y": a.y + a.height / 2 - a.size * 1.86 * sm / 2,
+                "dimsFactor":     dimsFactor,
                 "asteroidSize":   a.size,
                 "explosionColor": "nuke"
             })
@@ -1368,7 +1251,7 @@ Item {
         var dx  = targetX - spawnX
         var dy  = targetY - spawnY
         var mag = Math.sqrt(dx * dx + dy * dy)
-        activeAsteroids.push(asteroidComponent.createObject(gameArea, {
+        activeAsteroids.push(asteroidComponent.createObject(asteroidLayer, {
             "x": spawnX, "y": spawnY,
             "size": size,
             "directionX": dx / mag, "directionY": dy / mag,
@@ -1380,7 +1263,7 @@ Item {
         var rad = Math.atan2(directionY, directionX)
         for (var i = 0; i < count; i++) {
             var newRad = rad + (i === 0 ? -1 : 1) * 45 * Math.PI / 180
-            activeAsteroids.push(asteroidComponent.createObject(gameArea, {
+            activeAsteroids.push(asteroidComponent.createObject(asteroidLayer, {
                 "x": x, "y": y,
                 "size": size,
                 "directionX": Math.cos(newRad), "directionY": Math.sin(newRad),
@@ -1484,15 +1367,17 @@ Item {
         score += points
 
         var sm = asteroid.asteroidSize === "large" ? 1.0 : asteroid.asteroidSize === "mid" ? 1.25 : 1.333
-        explosionParticleComponent.createObject(gameContent, {
-            "x": acx - asteroid.size * 2.33 * sm / 2,
-            "y": acy - asteroid.size * 2.33 * sm / 2,
+        explosionParticleComponent.createObject(vfxLayer, {
+            "x": acx - asteroid.size * 1.86 * sm / 2,
+            "y": acy - asteroid.size * 1.86 * sm / 2,
+            "dimsFactor":     dimsFactor,
             "asteroidSize":   asteroid.size,
             "explosionColor": "default"
         })
-        scoreParticleComponent.createObject(gameContent, {
+        scoreParticleComponent.createObject(vfxLayer, {
             "x": acx - dimsFactor * 4,
             "y": acy - dimsFactor * 4,
+            "dimsFactor": dimsFactor,
             "text": "+" + points,
             "color": inside
                 ? (activePowerup === "frenzy" ? "#FFAA00" : "#00FFFF")
@@ -1506,7 +1391,7 @@ Item {
         }
 
         asteroid.split()
-        // Chain bolt forks toward three nearest asteroids on hit
+
         if (shot.chaining && shot.generation < 3) {
             var cx2 = asteroid.x + asteroid.width  / 2
             var cy2 = asteroid.y + asteroid.height / 2
@@ -1519,14 +1404,14 @@ Item {
                 targets.push({ asteroid: ca, dist: Math.sqrt(cdx * cdx + cdy * cdy) })
             }
             targets.sort(function(a, b) { return a.dist - b.dist })
-            var forkCount = Math.min(2, targets.length)
+            var forkCount = Math.min(3, targets.length)
             for (var fi = 0; fi < forkCount; fi++) {
                 var ta  = targets[fi].asteroid
                 var tdx = (ta.x + ta.width  / 2) - cx2
                 var tdy = (ta.y + ta.height / 2) - cy2
                 var tmg = Math.sqrt(tdx * tdx + tdy * tdy)
                 if (tmg === 0) continue
-                var fs = autoFireShotComponent.createObject(gameArea, {
+                var fs = autoFireShotComponent.createObject(shotLayer, {
                     "x": cx2, "y": cy2,
                     "directionX": tdx / tmg,
                     "directionY": tdy / tmg,
@@ -1572,9 +1457,10 @@ Item {
             if (index !== -1) activeAsteroids.splice(index, 1)
             var sm = asteroid.asteroidSize === "large" ? 1.0
                    : asteroid.asteroidSize === "mid"   ? 1.25 : 1.333
-            explosionParticleComponent.createObject(gameContent, {
-                "x": asteroid.x + asteroid.width  / 2 - asteroid.size * 2.33 * sm / 2,
-                "y": asteroid.y + asteroid.height / 2 - asteroid.size * 2.33 * sm / 2,
+            explosionParticleComponent.createObject(vfxLayer, {
+                "x": asteroid.x + asteroid.width  / 2 - asteroid.size * 1.86 * sm / 2,
+                "y": asteroid.y + asteroid.height / 2 - asteroid.size * 1.86 * sm / 2,
+                "dimsFactor":     dimsFactor,
                 "asteroidSize":   asteroid.size,
                 "explosionColor": "shield"
             })
@@ -1659,7 +1545,6 @@ Item {
         glowColor = "#00000000"
         powerupLabel = ""
 
-        // destroyUfo() also stops ufoCooldownTimer
         destroyUfo()
 
         for (var i = 0; i < activeShots.length; i++) {

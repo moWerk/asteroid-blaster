@@ -92,7 +92,6 @@ Item {
 
     width:  size * 1.5415
     height: size
-    z: 3
 
     // ── Color cycling ─────────────────────────────────────────────────────────
     // Picks a new weighted-random power-up every 3 s.
