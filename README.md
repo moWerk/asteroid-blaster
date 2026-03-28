@@ -2,6 +2,9 @@
 
 A tilt-controlled asteroid shooter for AsteroidOS smartwatches. Survive escalating waves, hunt a colour-shifting UFO for power-ups, and rack up points inside the bonus perimeter — all on a small smartwatch screen with nothing but a wrist tilt and an autofire cannon.
 
+[![Blaster 2.0 on Youtube](https://img.youtube.com/vi/Yq3bdBSc5J0/0.jpg)](https://www.youtube.com/watch?v=Yq3bdBSc5J0)
+
+
 ## The Smartwatch Angle
 
 Classic Asteroids gives you five buttons and a large screen. A smartwatch gives you an accelerometer, autofire, and a round display that clips your corners. That constraint shaped every design decision in this game.
