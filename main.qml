@@ -112,6 +112,7 @@ Item {
     // UFO state
     property bool ufoActive: false
     property var  ufoObject: null
+
     // Canonical UFO size — used in spawnUfo() and handleUfoHit()
     // so the value is defined exactly once.
     readonly property real ufoSize: dimsFactor * 8
@@ -121,6 +122,8 @@ Item {
     property color  glowColor: "#00000000"
     // powerupLabel is never cleared so text stays readable through popup fade-out
     property string powerupLabel: ""
+    property string unlockLabel: ""
+    property bool   unlockVisible: false
     property bool   popupActive: false
 
     NonGraphicalFeedback {
@@ -368,6 +371,7 @@ Item {
             paused:      root.paused
             gameOver:    root.gameOver
             calibrating: root.calibrating
+            level:       root.level
         }
     }
 
@@ -736,7 +740,7 @@ Item {
                     radius: height / 2
                     color: Qt.rgba(1, 1, 1, 0.15)
                 }
-
+               
                 // Fill pill — width animated by NumberAnimation restarted in activatePowerup()
                 Rectangle {
                     id: powerupBarFill
@@ -758,6 +762,30 @@ Item {
                 }
             }
 
+            // ── Power-up unlock notification — flashes below power-up bar on level up ──
+            Text {
+                id: powerupUnlock
+                text: unlockLabel
+                color: "white"
+                font { pixelSize: dimsFactor * 11; family: "Teko"; styleName: "Bold"; letterSpacing: dimsFactor * 0.3 }
+                anchors {
+                    top: powerupBarContainer.bottom
+                    topMargin: dimsFactor * 5
+                    horizontalCenter: parent.horizontalCenter
+                }
+                z: 5
+                opacity: 0
+                visible: !calibrating && !gameOver
+                
+                SequentialAnimation {
+                    id: unlockAnim
+                    NumberAnimation { target: powerupUnlock; property: "opacity"; to: 0.9; duration: 200 }
+                    PauseAnimation  { duration: 2400 }
+                    NumberAnimation { target: powerupUnlock; property: "opacity"; to: 0.0; duration: 800; easing.type: Easing.InQuad }
+                }
+            }
+            
+            
             // ── Power-up popup — arcade flash below player on activation ──────
             // Snaps in at opacity 1, holds 800ms, fades over 400ms.
             // powerupLabel is set before popupActive toggles so text is always valid.
@@ -777,10 +805,12 @@ Item {
 
                 SequentialAnimation {
                     id: popupAnim
-                    NumberAnimation { target: powerupPopup; property: "opacity"; to: 0.8; duration: 100 }                    NumberAnimation { target: powerupPopup; property: "opacity"; to: 0.4; duration: 100 }                    NumberAnimation { target: powerupPopup; property: "opacity"; to: 0.9; duration: 100 }
-                    NumberAnimation { target: powerupPopup; property: "opacity"; to: 7.0; duration: 100 }
-                    NumberAnimation { target: powerupPopup; property: "opacity"; to: 0.9; duration: 100 }
-                    PauseAnimation  { duration: 1600 }
+                    NumberAnimation { target: powerupPopup; property: "opacity"; to: 0.8; duration: 100 }
+                    NumberAnimation { target: powerupPopup; property: "opacity"; to: 0.4; duration: 50 }
+                    NumberAnimation { target: powerupPopup; property: "opacity"; to: 0.9; duration: 50 }
+                    NumberAnimation { target: powerupPopup; property: "opacity"; to: 7.0; duration: 50 }
+                    NumberAnimation { target: powerupPopup; property: "opacity"; to: 0.9; duration: 50 }
+                    PauseAnimation  { duration: 2200 }
                     NumberAnimation { target: powerupPopup; property: "opacity"; to: 0.0; duration: 400; easing.type: Easing.InQuad }
                 }
             }
@@ -1375,6 +1405,15 @@ Item {
         }
         if (waveCount === 0 && asteroidsSpawned >= initialAsteroidsToSpawn) {
             level++
+            var ul = ""
+            if      (level === 2)  ul = "PIERCE UNLOCKED"
+            else if (level === 3)  ul = "WIDE UNLOCKED"
+            else if (level === 4)  ul = "TRIPLE UNLOCKED"
+            else if (level === 6)  ul = "RAPID UNLOCKED"
+            else if (level === 8)  ul = "LASER UNLOCKED"
+            else if (level === 10) ul = "CHAIN BOLT UNLOCKED"
+            else if (level === 12) ul = "NUKE UNLOCKED"
+            if (ul !== "") { unlockLabel = ul; unlockAnim.restart() }
             initialAsteroidsToSpawn = balance.spawnCountBase + level
             asteroidsSpawned = 0
             spawnLargeAsteroid()

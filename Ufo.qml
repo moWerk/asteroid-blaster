@@ -45,6 +45,7 @@ Item {
     property bool paused:      false
     property bool gameOver:    false
     property bool calibrating: false
+    property int  level: 1
 
     // ── Physics interface (mirrors asteroidComponent) ─────────────────────────
     // size = same as mid asteroid
@@ -104,15 +105,21 @@ Item {
     }
 
     function nextColorIndex() {
+        // Power-ups unlock progressively by level
+        var unlockLevel = [3, 6, 4, 2, 1, 1, 12, 8, 10]
         var total = 0
-        for (var i = 0; i < powerupWeights.length; i++) total += powerupWeights[i]
-        var r = Math.random() * total
-        var cumulative = 0
         for (var i = 0; i < powerupWeights.length; i++) {
-            cumulative += powerupWeights[i]
-            if (r < cumulative) return i
+            if (ufo.level >= unlockLevel[i]) total += powerupWeights[i]
         }
-        return 0
+        if (total === 0) return 0
+            var r = Math.random() * total
+            var cumulative = 0
+            for (var i = 0; i < powerupWeights.length; i++) {
+                if (ufo.level < unlockLevel[i]) continue
+                    cumulative += powerupWeights[i]
+                    if (r < cumulative) return i
+            }
+            return 0
     }
 
     Component.onCompleted: {
