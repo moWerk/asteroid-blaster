@@ -68,6 +68,7 @@ Item {
         readonly property real  wideShotAngle:         20
         readonly property real  wideShotSpeedMult:     0.65
         readonly property real  tripleShotSpread:      3
+        readonly property real  laserFireMult:         1.2
 
         // Scoring
         readonly property int   pointsLarge:           20
@@ -197,7 +198,7 @@ Item {
 
     Timer {
         id: autoFireTimer
-        interval: activePowerup === "rapid" ? balance.rapidFireInterval : activePowerup === "pierce" ? Math.round(balance.fireInterval * balance.pierceFourwayFireMult) : balance.fireInterval
+        interval: activePowerup === "rapid" ? balance.rapidFireInterval : activePowerup === "pierce" ? Math.round(balance.fireInterval * balance.pierceFourwayFireMult) : activePowerup === "laser" ? Math.round(balance.fireInterval * balance.laserFireMult) : balance.fireInterval
         running: !gameOver && !calibrating && !paused
         repeat: true
         onTriggered: {
@@ -219,7 +220,7 @@ Item {
                     "directionX":  Math.sin(a),
                     "directionY": -Math.cos(a),
                     "rotation":    playerRotation + ai * 90,
-                    "shotColor":   isPierce ? "#DDCC00" : activePowerup === "rapid" ? "#AA44FF" : activePowerup === "triple" ? "#00CC44" : activePowerup === "frenzy" ? "#FFAA00" : activePowerup === "wide" ? "#FF44AA" : "#00FFFF",
+                    "shotColor":   isPierce ? "#DDCC00" : activePowerup === "rapid" ? "#AA44FF" : activePowerup === "triple" ? "#33FF66" : activePowerup === "frenzy" ? "#FFAA00" : activePowerup === "wide" ? "#FF44AA" : activePowerup === "laser" ? "#00FFAA" : activePowerup === "chain" ? "#2299FF" : "#00FFFF",
                     "piercing":    isPierce
                 })
                 activeShots.push(shot)
@@ -264,6 +265,38 @@ Item {
                 })
                 activeShots.push(sTL)
                 activeShots.push(sTR)
+            }
+            
+            if (activePowerup === "laser") {
+                // Replace centre shot with long beam — pop the normal one and spawn beam
+                var removed = activeShots.pop()
+                if (removed) removed.destroy()
+                    var beam = autoFireShotComponent.createObject(gameArea, {
+                        "x": sox - dimsFactor * 1,
+                        "y": soy - dimsFactor * 50,
+                        "directionX":  Math.sin(rad),
+                        "directionY": -Math.cos(rad),
+                        "rotation":    playerRotation,
+                        "transformOrigin": Item.Bottom,
+                        "shotColor":   "#00FFAA",
+                        "width":       dimsFactor * 2,
+                        "height":      dimsFactor * 50,
+                        "speed":       balance.shotSpeed * 5,
+                        "piercing":    true
+                    })
+                    activeShots.push(beam)
+            }
+            
+            if (activePowerup === "chain") {
+                // Mark the centre shot as a chaining bolt
+                var cs = activeShots[activeShots.length - 1]
+                if (cs) {
+                    cs.chaining   = true
+                    cs.generation = 0
+                    cs.shotColor  = "#2299FF"
+                    cs.width      = dimsFactor * 2
+                    cs.speed      = balance.shotSpeed * 0.85
+                }
             }
         }
     }
@@ -442,10 +475,12 @@ Item {
             property real   directionX: 0
             property real   directionY: -1
             property bool   piercing:   false
+            property bool   chaining:   false
+            property int    generation: 0
             rotation: playerRotation
         }
     }
-
+    
     Component {
         id: scoreParticleComponent
         Text {
@@ -1218,13 +1253,15 @@ Item {
     function activatePowerup(type, color) {
         // Name table for popup label
         var labels = {
-            "wide":   "WIDE RAZZ",
-            "rapid":  "RAPID HYPE",
-            "triple": "TRIPLE DANK",
-            "pierce": "QUAD PIERCE",
-            "frenzy": "SCORE FRENZY",
-            "shield": "THICCER SHIELD",
-            "nuke":   "NUKE WIPE"
+            "wide":     "WIDE RAZZ",
+            "rapid":    "RAPID HYPE",
+            "triple":   "TRIPLE DANK",
+            "pierce":   "QUAD PIERCE",
+            "frenzy":   "SCORE FRENZY",
+            "shield":   "THICCER SHIELD",
+            "laser":    "YEET LASER",
+            "chain":    "GIB CHAIN BOLT",
+            "nuke":     "NUKE WIPE"
         }
 
         powerupLabel = labels[type] || type.toUpperCase()
@@ -1430,6 +1467,40 @@ Item {
         }
 
         asteroid.split()
+        // Chain bolt forks toward three nearest asteroids on hit
+        if (shot.chaining && shot.generation < 3) {
+            var cx2 = asteroid.x + asteroid.width  / 2
+            var cy2 = asteroid.y + asteroid.height / 2
+            var targets = []
+            for (var ci = 0; ci < activeAsteroids.length; ci++) {
+                var ca = activeAsteroids[ci]
+                if (!ca || ca.isUfo) continue
+                var cdx = (ca.x + ca.width  / 2) - cx2
+                var cdy = (ca.y + ca.height / 2) - cy2
+                targets.push({ asteroid: ca, dist: Math.sqrt(cdx * cdx + cdy * cdy) })
+            }
+            targets.sort(function(a, b) { return a.dist - b.dist })
+            var forkCount = Math.min(2, targets.length)
+            for (var fi = 0; fi < forkCount; fi++) {
+                var ta  = targets[fi].asteroid
+                var tdx = (ta.x + ta.width  / 2) - cx2
+                var tdy = (ta.y + ta.height / 2) - cy2
+                var tmg = Math.sqrt(tdx * tdx + tdy * tdy)
+                if (tmg === 0) continue
+                var fs = autoFireShotComponent.createObject(gameArea, {
+                    "x": cx2, "y": cy2,
+                    "directionX": tdx / tmg,
+                    "directionY": tdy / tmg,
+                    "rotation":   Math.atan2(tdx, -tdy) * 180 / Math.PI,
+                    "shotColor":  "#2299FF",
+                    "width":      dimsFactor * 2,
+                    "speed":      balance.shotSpeed * 0.85,
+                    "chaining":   true,
+                    "generation": shot.generation + 1
+                })
+                activeShots.push(fs)
+            }
+        }
     }
 
     function checkPlayerAsteroidCollision(playerHitbox, asteroid) {

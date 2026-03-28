@@ -79,12 +79,10 @@ Item {
     }
 
     // Power-up table.  Weights drive random frequency:
-    //   normal (wide/rapid/triple/pierce/frenzy) = 10 each
-    //   shield = 2  (rare)
-    //   nuke   = 1  (very rare, ~1/10 of a normal slot)
-    readonly property var powerupTypes:   ["wide",    "rapid",   "triple",  "pierce",  "frenzy",  "shield",  "nuke"   ]
-    readonly property var powerupColors:  ["#FF44AA", "#AA44FF", "#00CC44", "#DDCC00", "#FFAA00", "#DD1155", "#FFFFFF" ]
-    readonly property var powerupWeights: [10,         10,        10,        8,        8,         6,         6       ]
+    //   normal (wide/rapid/triple/pierce/frenzy/laser/chain) = 10 each
+    readonly property var powerupTypes:   ["wide",    "rapid",   "triple",  "pierce",  "frenzy",  "shield",  "nuke",    "laser",   "chain"   ]
+    readonly property var powerupColors:  ["#FF44AA", "#AA44FF", "#33FF66", "#DDCC00", "#FFAA00", "#DD1155", "#FFFFFF", "#00FFAA", "#2299FF" ]
+    readonly property var powerupWeights: [10,         10,        10,        8,         8,         6,         6,         10,        10       ]
 
     // ── Geometry ──────────────────────────────────────────────────────────────
     // SVG natural dimensions after junction snapping: 35.082 × 22.758
