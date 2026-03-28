@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2025 - Timo Könnecke <github.com/eLtMosen>
+ * Copyright (C) 2026 - Timo Könnecke <github.com/moWerk>
  *
  * All rights reserved.
  *
@@ -35,12 +35,12 @@ Item {
         id: balance
 
         // Spawning
-        readonly property int   initialSpawnCount:     5
-        readonly property int   spawnCountBase:        4
-        readonly property int   spawnIntervalStart:    3000
-        readonly property int   spawnIntervalFloor:    300
-        readonly property int   spawnIntervalStep:     131
-        readonly property int   midAsteroidCap:        10
+        readonly property int   initialSpawnCount:     8
+        readonly property int   spawnCountBase:        6      // asteroids per wave = spawnCountBase + level
+        readonly property int   spawnIntervalStart:    2000   // ms between spawns at level 1, decreases each level
+        readonly property int   spawnIntervalFloor:    300    // minimum ms between spawns, never goes below this
+        readonly property int   spawnIntervalStep:     100    // ms reduction per level on the spawn interval
+        readonly property int   midAsteroidCap:        20
         readonly property int   smallAsteroidCap:      100
 
         // Asteroid movement
@@ -78,7 +78,7 @@ Item {
         readonly property real  perimeterRadius:       27.5
 
         // Power-ups
-        readonly property int   powerupDuration:       12000
+        readonly property int   powerupDuration:       10000
         readonly property real  pierceFourwayFireMult: 1.333
 
         // Physics
@@ -112,6 +112,7 @@ Item {
     // UFO state
     property bool ufoActive: false
     property var  ufoObject: null
+    property bool playerDying: false
     readonly property real ufoSize: dimsFactor * 8
 
     // Power-up state
@@ -119,7 +120,7 @@ Item {
     property color  glowColor: "#00000000"
     property string powerupLabel: ""
     property string unlockLabel: ""
-    property bool   popupActive: false
+    property string pendingUnlockType: ""
 
     NonGraphicalFeedback {
         id: feedback
@@ -137,12 +138,19 @@ Item {
         if (!calibrating) ufoSpawnTimer.restart()
     }
 
+    onLevelChanged: {
+        if (!calibrating && level > 1) {
+            levelFlashAnim.restart()
+            levelColorAnim.restart()
+        }
+    }
+
     // ── Timers ────────────────────────────────────────────────────────────────
 
     Timer {
         id: gameTimer
         interval: 16
-        running: !gameOver && !calibrating && !paused
+        running: !gameOver && !calibrating && !paused && !playerDying
         repeat: true
         property real lastFps: 60
         property var  fpsHistory: []
@@ -197,7 +205,7 @@ Item {
     Timer {
         id: autoFireTimer
         interval: activePowerup === "rapid" ? balance.rapidFireInterval : activePowerup === "pierce" ? Math.round(balance.fireInterval * balance.pierceFourwayFireMult) : activePowerup === "laser" ? Math.round(balance.fireInterval * balance.laserFireMult) : balance.fireInterval
-        running: !gameOver && !calibrating && !paused
+        running: !gameOver && !calibrating && !paused && !playerDying
         repeat: true
         onTriggered: {
             var rad = playerRotation * Math.PI / 180
@@ -327,6 +335,7 @@ Item {
         onTriggered: {
             activePowerup = ""
             glowColor = "#00000000"
+            powerupBarContainer.opacity = 0
             if (ufoObject) {
                 ufoObject.cooldown = true
                 ufoCooldownTimer.restart()
@@ -346,7 +355,48 @@ Item {
             }
         }
     }
-
+    
+    Timer {
+        id: unlockGiftTimer
+        interval: 2000
+        repeat: false
+        onTriggered: {
+            if (activePowerup === "" && pendingUnlockType !== "") {
+                var giftColors = {
+                    "wide": "#FF44AA", "rapid": "#AA44FF", "triple": "#33FF66",
+                    "pierce": "#DDCC00", "laser": "#00FFAA", "chain": "#2299FF", "nuke": "#FFFFFF"
+                }
+                activatePowerup(pendingUnlockType, giftColors[pendingUnlockType])
+                if (ufoObject) ufoObject.dimmed = true
+            }
+            pendingUnlockType = ""
+        }
+    }
+    
+    Timer {
+        id: deathSequenceTimer
+        interval: 1000
+        repeat: false
+        onTriggered: {
+            gameOver = true
+            asteroidSpawnTimer.stop()
+            ufoSpawnTimer.stop()
+            powerupTimer.stop()
+            ufoCooldownTimer.stop()
+            activePowerup = ""
+            glowColor = "#00000000"
+            destroyUfo()
+            for (var i = 0; i < activeAsteroids.length; i++) {
+                if (activeAsteroids[i]) activeAsteroids[i].destroy()
+            }
+            for (var j = 0; j < activeShots.length; j++) {
+                if (activeShots[j]) activeShots[j].destroy()
+            }
+            activeAsteroids = []
+            activeShots = []
+        }
+    }
+    
     // ── Components ────────────────────────────────────────────────────────────
 
     Component {
@@ -388,6 +438,11 @@ Item {
         ScoreParticle { }
     }
 
+    Component {
+        id: deathShaderComponent
+        DeathShader { }
+    }
+    
     Component {
         id: asteroidComponent
         Shape {
@@ -500,10 +555,16 @@ Item {
         anchors.fill: parent
 
         // Solid black background — first child of gameArea, paints behind everything.
-        // No layer.enabled or clip on a solid fill-parent Rectangle.
         Rectangle {
+            id: backgroundRect
             anchors.fill: parent
             color: "black"
+            
+            SequentialAnimation {
+                id: levelFlashAnim
+                ColorAnimation { target: backgroundRect; property: "color"; to: "#00CCCC"; duration: 200 }
+                ColorAnimation { target: backgroundRect; property: "color"; to: "black";   duration: 800 }
+            }
         }
 
         Item {
@@ -596,11 +657,15 @@ Item {
                     height: dimsFactor * 14
                     anchors.centerIn: parent
                     visible: shield > 0
+                    opacity: shield >= 4 ? 1.0
+                    : shield === 3 ? 0.8
+                    : shield === 2 ? 0.6
+                    : shield === 1 ? 0.4 : 0.0
                     rotation: playerRotation
                     ShapePath {
                         strokeWidth: 2
                         strokeColor: "#DD1155"
-                        fillColor: "transparent"
+                        fillColor:   "transparent"
                         startX: dimsFactor * 7; startY: 0
                         PathLine { x: dimsFactor * 14; y: dimsFactor * 7 }
                         PathLine { x: dimsFactor * 7;  y: dimsFactor * 14 }
@@ -620,7 +685,7 @@ Item {
                 anchors.fill: parent
             }
 
-            // ── HUD ───────────────────────────────────────────────────────────
+            // ── HUD
 
             Text {
                 id: levelNumber
@@ -629,6 +694,12 @@ Item {
                 font { pixelSize: dimsFactor * 12; family: "Teko"; styleName: "SemiBold" }
                 anchors { top: root.top; horizontalCenter: parent.horizontalCenter }
                 visible: !calibrating
+                
+                SequentialAnimation {
+                    id: levelColorAnim
+                    ColorAnimation { target: levelNumber; property: "color"; to: "#FFAA00"; duration: 200 }
+                    ColorAnimation { target: levelNumber; property: "color"; to: "#00FFFF"; duration: 800 }
+                }
             }
 
             Item {
@@ -641,7 +712,15 @@ Item {
                     horizontalCenter: parent.horizontalCenter
                 }
                 visible: !calibrating && !gameOver && activePowerup !== "" && activePowerup !== "shield"
-
+                opacity: 0
+                
+                SequentialAnimation {
+                    id: barOpacityAnim
+                    NumberAnimation { target: powerupBarContainer; property: "opacity"; to: 1.0; duration: 200; easing.type: Easing.InQuad }
+                    PauseAnimation  { duration: balance.powerupDuration - 1200 }
+                    NumberAnimation { target: powerupBarContainer; property: "opacity"; to: 0.0; duration: 1000; easing.type: Easing.InQuad }
+                }
+                
                 Rectangle {
                     anchors.fill: parent
                     radius: height / 2
@@ -675,7 +754,7 @@ Item {
                 font { pixelSize: dimsFactor * 11; family: "Teko"; styleName: "Bold"; letterSpacing: dimsFactor * 0.3 }
                 anchors {
                     top: powerupBarContainer.bottom
-                    topMargin: dimsFactor * 5
+                    topMargin: dimsFactor * 4
                     horizontalCenter: parent.horizontalCenter
                 }
                 opacity: 0
@@ -683,9 +762,9 @@ Item {
 
                 SequentialAnimation {
                     id: unlockAnim
-                    NumberAnimation { target: powerupUnlock; property: "opacity"; to: 0.9; duration: 200 }
-                    PauseAnimation  { duration: 2400 }
-                    NumberAnimation { target: powerupUnlock; property: "opacity"; to: 0.0; duration: 800; easing.type: Easing.InQuad }
+                    NumberAnimation { target: powerupUnlock; property: "opacity"; to: 0.85; duration: 400 }
+                    PauseAnimation  { duration: 1600 }
+                    NumberAnimation { target: powerupUnlock; property: "opacity"; to: 0.0; duration: 1600; easing.type: Easing.InQuad }
                 }
             }
 
@@ -718,10 +797,10 @@ Item {
                 id: scoreText
                 text: score
                 color: "#FFAA00"
-                font { pixelSize: dimsFactor * 13; family: "Teko"; styleName: activePowerup === "frenzy" ? "Bold" : "Light" }
+                font { pixelSize: dimsFactor * 13; family: "Teko"; styleName: activePowerup === "frenzy" ? "Medium" : "Light" }
                 anchors {
                     bottom: shieldText.top
-                    bottomMargin: -dimsFactor * 8
+                    bottomMargin: -dimsFactor * 8.4
                     horizontalCenter: parent.horizontalCenter
                 }
                 visible: !gameOver && !calibrating
@@ -731,14 +810,23 @@ Item {
             Text {
                 id: shieldText
                 text: shield
-                color: shield > 0 ? "#DD1155" : "white"
+                color: "#DD1155"
+                opacity: shield > 0 ? 1 : 0
                 font { pixelSize: dimsFactor * 12; family: "Teko"; styleName: "SemiBold" }
                 anchors {
                     bottom: parent.bottom
                     bottomMargin: -dimsFactor * 5
                     horizontalCenter: parent.horizontalCenter
                 }
-                visible: !calibrating
+                visible: !calibrating && !gameOver
+                
+                SequentialAnimation on opacity {
+                    running: shield <= 0
+                    loops:   Animation.Infinite
+                    NumberAnimation { to: 0; duration: 300; easing.type: Easing.InOutQuad }
+                    NumberAnimation { to: 1; duration: 300; easing.type: Easing.InOutQuad }
+                    onRunningChanged: { if (!running) shieldText.opacity = 1 }
+                }
             }
 
             // ── Calibration ───────────────────────────────────────────────────
@@ -805,8 +893,8 @@ Item {
                 id: dimmingLayer
                 anchors.fill: parent
                 color: "#000000"
-                opacity: (paused && !gameOver && !calibrating) || gameOver ? 0.6 : 0.0
-                Behavior on opacity { NumberAnimation { duration: 250; easing.type: Easing.InOutQuad } }
+                opacity: (paused && !gameOver && !calibrating) || gameOver ? 0.8 : 0.0
+                Behavior on opacity { NumberAnimation { duration: 500; easing.type: Easing.InOutQuad } }
             }
 
             // ── Pause + debug ─────────────────────────────────────────────────
@@ -898,8 +986,8 @@ Item {
 
             Text {
                 text: "Game Over"
-                color: "white"
-                font { pixelSize: dimsFactor * 20; family: "Teko"; styleName: "Medium" }
+                color: "#DDFFFFFF"
+                font { pixelSize: dimsFactor * 19; family: "Teko"; styleName: "Medium" }
                 anchors {
                     bottom: scoreOverText.top
                     bottomMargin: -dimsFactor * 8
@@ -914,7 +1002,7 @@ Item {
                 color: "white"
                 lineHeightMode: Text.ProportionalHeight
                 lineHeight: 0.6
-                font { pixelSize: dimsFactor * 12; family: "Teko" }
+                font { pixelSize: dimsFactor * 12; family: "Teko"; letterSpacing: dimsFactor * 0.34 }
                 anchors {
                     bottom: parent.verticalCenter
                     bottomMargin: dimsFactor * 1
@@ -925,31 +1013,32 @@ Item {
             Text {
                 text: "Highscore: " + GameStorage.highScore + "\nLevel: " + GameStorage.highLevel
                 horizontalAlignment: Text.AlignHCenter
-                color: "white"
+                color: "#FFAA00"
                 lineHeightMode: Text.ProportionalHeight
                 lineHeight: 0.6
-                font { pixelSize: dimsFactor * 12; family: "Teko" }
+                font { pixelSize: dimsFactor * 10.4; family: "Teko"; letterSpacing: dimsFactor * 0.34 }
                 anchors {
                     top: parent.verticalCenter
-                    topMargin: dimsFactor * 1
+                    topMargin: dimsFactor * 0.8
                     horizontalCenter: parent.horizontalCenter
                 }
             }
 
             Rectangle {
-                width: dimsFactor * 50; height: dimsFactor * 20
+                width: dimsFactor * 50; height: dimsFactor * 19
                 radius: dimsFactor * 2
-                color: "#222222"
+                color: "#444444"
                 anchors {
                     top: parent.verticalCenter
-                    topMargin: dimsFactor * 20
+                    topMargin: dimsFactor * 24
                     horizontalCenter: parent.horizontalCenter
                 }
                 Text {
                     text: "Try Again"
                     color: "white"
-                    font { pixelSize: dimsFactor * 10; family: "Teko"; styleName: "SemiBold" }
+                    font { pixelSize: dimsFactor * 11; family: "Teko"; styleName: "SemiBold" }
                     anchors.centerIn: parent
+                    anchors.verticalCenterOffset: dimsFactor * 0.6
                 }
                 MouseArea {
                     anchors.fill: parent
@@ -1082,34 +1171,38 @@ Item {
         var ufoH = ufoSize
         var side = Math.floor(Math.random() * 4)
         var waypoints
-
+        var j1x  = dimsFactor * (Math.random() * 8 - 4)
+        var j1y  = dimsFactor * (Math.random() * 8 - 4)
+        var j2x  = dimsFactor * (Math.random() * 8 - 4)
+        var j2y  = dimsFactor * (Math.random() * 8 - 4)
+        
         if (side === 0) {
             waypoints = [
-                Qt.point(-ufoW,    h * 0.50),
-                Qt.point(w * 0.25, -h * 0.25),
-                Qt.point(w * 0.50,  h + ufoH),
-                Qt.point(w + ufoW,  h * 0.25)
+                Qt.point(-ufoW,              h * 0.50),
+                Qt.point(w * 0.15 + j1x,   -h * 0.25 + j1y),
+                Qt.point(w * 0.50 + j2x,    h + ufoH  + j2y),
+                Qt.point(w + ufoW,           h * 0.25)
             ]
         } else if (side === 1) {
             waypoints = [
-                Qt.point(w * 0.50, -ufoH),
-                Qt.point(w + ufoW,  h * 0.25),
-                Qt.point(-ufoW,     h * 0.50),
-                Qt.point(w * 0.75,  h + ufoH)
+                Qt.point(w * 0.50,           -ufoH),
+                Qt.point(w + ufoW  + j1x,    h * 0.15 + j1y),
+                Qt.point(-ufoW     + j2x,    h * 0.50 + j2y),
+                Qt.point(w * 0.75,            h + ufoH)
             ]
         } else if (side === 2) {
             waypoints = [
-                Qt.point(w + ufoW,  h * 0.50),
-                Qt.point(w * 0.75,  h + ufoH),
-                Qt.point(w * 0.50, -h * 0.25),
-                Qt.point(-ufoW,     h * 0.75)
+                Qt.point(w + ufoW,            h * 0.50),
+                Qt.point(w * 0.85 + j1x,     h + ufoH  + j1y),
+                Qt.point(w * 0.50 + j2x,    -h * 0.25 + j2y),
+                Qt.point(-ufoW,               h * 0.75)
             ]
         } else {
             waypoints = [
-                Qt.point(w * 0.50,  h + ufoH),
-                Qt.point(-ufoW,     h * 0.75),
-                Qt.point(w + ufoW,  h * 0.50),
-                Qt.point(w * 0.25, -ufoH)
+                Qt.point(w * 0.50,            h + ufoH),
+                Qt.point(-ufoW     + j1x,     h * 0.85 + j1y),
+                Qt.point(w + ufoW  + j2x,     h * 0.50 + j2y),
+                Qt.point(w * 0.25,            -ufoH)
             ]
         }
 
@@ -1159,6 +1252,15 @@ Item {
                 parseInt(color.slice(5, 7), 16) / 255
             )
         })
+        
+        deathShaderComponent.createObject(vfxLayer, {
+            "x": cx - dimsFactor * 40,
+            "y": cy - dimsFactor * 40,
+            "width":    dimsFactor * 80,
+            "height":   dimsFactor * 80,
+            "ringColor": color,
+            "autoPlay":  true
+        })
 
         activatePowerup(type, color)
         feedback.play()
@@ -1198,6 +1300,8 @@ Item {
         powerupBarFill.width = powerupBarContainer.width
         powerupBarAnim.duration = balance.powerupDuration
         powerupBarAnim.restart()
+        powerupBarContainer.opacity = 0
+        barOpacityAnim.restart()
         powerupTimer.interval = balance.powerupDuration
         powerupTimer.restart()
     }
@@ -1289,14 +1393,20 @@ Item {
         if (waveCount === 0 && asteroidsSpawned >= initialAsteroidsToSpawn) {
             level++
             var ul = ""
-            if      (level === 2)  ul = "PIERCE UNLOCKED"
-            else if (level === 3)  ul = "WIDE UNLOCKED"
-            else if (level === 4)  ul = "TRIPLE UNLOCKED"
-            else if (level === 6)  ul = "RAPID UNLOCKED"
-            else if (level === 8)  ul = "LASER UNLOCKED"
-            else if (level === 10) ul = "CHAIN BOLT UNLOCKED"
-            else if (level === 12) ul = "NUKE UNLOCKED"
-            if (ul !== "") { unlockLabel = ul; unlockAnim.restart() }
+            var ut = ""
+            if      (level === 2)  { ul = "PIERCE UNLOCKED"; ut = "pierce" }
+            else if (level === 3)  { ul = "WIDE UNLOCKED"; ut = "wide" }
+            else if (level === 4)  { ul = "TRIPLE UNLOCKED"; ut = "triple" }
+            else if (level === 6)  { ul = "RAPID UNLOCKED"; ut = "rapid" }
+            else if (level === 8)  { ul = "LASER UNLOCKED"; ut = "laser" }
+            else if (level === 10) { ul = "CHAIN BOLT UNLOCKED"; ut = "chain" }
+            else if (level === 12) { ul = "NUKE UNLOCKED"; ut = "nuke" }
+            if (ul !== "") {
+                unlockLabel = ul
+                pendingUnlockType = ut
+                unlockAnim.restart()
+                unlockGiftTimer.restart()
+            }
             initialAsteroidsToSpawn = balance.spawnCountBase + level
             asteroidsSpawned = 0
             spawnLargeAsteroid()
@@ -1379,9 +1489,7 @@ Item {
             "y": acy - dimsFactor * 4,
             "dimsFactor": dimsFactor,
             "text": "+" + points,
-            "color": inside
-                ? (activePowerup === "frenzy" ? "#FFAA00" : "#00FFFF")
-                : "#67AAF9"
+            "color": inside ? "#FFAA00" : "#CC7700"
         })
 
         if (inside) {
@@ -1467,22 +1575,22 @@ Item {
             asteroid.destroy()
             feedback.play()
         } else {
-            gameOver = true
+            playerDying = true
             asteroidSpawnTimer.stop()
             ufoSpawnTimer.stop()
             powerupTimer.stop()
             ufoCooldownTimer.stop()
             activePowerup = ""
             glowColor = "#00000000"
-            destroyUfo()
-            for (var i = 0; i < activeAsteroids.length; i++) {
-                if (activeAsteroids[i]) activeAsteroids[i].destroy()
-            }
-            for (var j = 0; j < activeShots.length; j++) {
-                if (activeShots[j]) activeShots[j].destroy()
-            }
-            activeAsteroids = []
-            activeShots = []
+            deathShaderComponent.createObject(vfxLayer, {
+                "x": playerContainer.x + playerHitbox.x - dimsFactor * 35,
+                "y": playerContainer.y + playerHitbox.y - dimsFactor * 35,
+                "width":     dimsFactor * 80,
+                "height":    dimsFactor * 80,
+                "ringColor": "#FF4400",
+                "autoPlay":  true
+            })
+            deathSequenceTimer.start()
             feedback.play()
         }
     }
@@ -1530,6 +1638,7 @@ Item {
         shield = balance.startingShields
         level  = 1
         gameOver    = false
+        playerDying = false
         paused      = false
         calibrating = false
         calibrationTimer = 4
@@ -1539,6 +1648,9 @@ Item {
         asteroidsSpawned = 0
         playerContainer.x = centerX
         playerContainer.y = centerY
+        
+        unlockGiftTimer.stop()
+        pendingUnlockType = ""
 
         powerupTimer.stop()
         activePowerup = ""
