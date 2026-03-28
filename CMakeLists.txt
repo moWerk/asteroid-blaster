@@ -15,7 +15,10 @@ include(ECMFindQmlModule)
 include(AsteroidCMakeSettings)
 include(AsteroidTranslations)
 
-add_executable(asteroid-blaster main.cpp resources.qrc)
+add_executable(asteroid-blaster
+    main.cpp
+    GameStorage.cpp
+    resources.qrc)
 
 target_link_libraries(asteroid-blaster PRIVATE
     AsteroidApp)

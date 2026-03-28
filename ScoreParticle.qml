@@ -15,14 +15,29 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <asteroidapp.h>
-#include <QtQml>
-#include "GameStorage.h"
+import QtQuick 2.15
 
-int main(int argc, char *argv[])
-{
-    qmlRegisterSingletonType<GameStorage>(
-        "org.asteroid.blaster", 1, 0, "GameStorage",
-        GameStorage::qmlInstance);
-    return AsteroidApp::main(argc, argv);
+// Self-contained score popup. Set text and color at createObject time.
+// Fades out and self-destructs.
+
+Text {
+    id: particle
+
+    property real dimsFactor: 1
+
+    color: "#00FFFF"
+    font { pixelSize: dimsFactor * 8; family: "Teko"; styleName: "Medium" }
+    opacity: 1.0
+
+    Behavior on opacity {
+        NumberAnimation {
+            duration: 2000
+            easing.type: Easing.InOutQuad
+            onRunningChanged: {
+                if (!running && opacity === 0) particle.destroy()
+            }
+        }
+    }
+
+    Component.onCompleted: { opacity = 0 }
 }
