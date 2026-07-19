@@ -4,7 +4,9 @@
     <file>main.qml</file>
     <file>Ufo.qml</file>
     <file>ExplosionShader.qml</file>
-    <file>ScoreParticle.qml</file>    
-    <file>DeathShader.qml</file>    
+    <file>ScoreParticle.qml</file>
+    <file>DeathShader.qml</file>
+    <file>shaders/death.frag.qsb</file>
+    <file>shaders/explosion.frag.qsb</file>
 </qresource>
 </RCC>
