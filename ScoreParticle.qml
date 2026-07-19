@@ -15,7 +15,7 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-import QtQuick 2.15
+import QtQuick
 
 // Self-contained score popup. Set text and color at createObject time.
 // Fades out and self-destructs.
