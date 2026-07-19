@@ -1672,6 +1672,14 @@ Item {
         ufoSpawnTimer.restart()
     }
 
-    Component.onCompleted:   { DisplayBlanking.preventBlanking = true  }
-    Component.onDestruction: { DisplayBlanking.preventBlanking = false }
+    // Declarative binding, not a one-shot Component.onCompleted write: on
+    // Qt6 onCompleted fires before the Wayland configure, and an imperative
+    // preventBlanking set that early can be lost. The Binding re-asserts
+    // continuously (same pattern as asteroid-dodger) and scopes prevention
+    // to live gameplay only — menus and game-over may blank normally.
+    Binding {
+        target: DisplayBlanking
+        property: "preventBlanking"
+        value: !gameOver && !paused
+    }
 }
