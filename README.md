@@ -5,6 +5,60 @@ A tilt-controlled asteroid shooter for AsteroidOS smartwatches. Survive escalati
 [![Blaster 2.0 on Youtube](https://img.youtube.com/vi/Yq3bdBSc5J0/0.jpg)](https://www.youtube.com/watch?v=Yq3bdBSc5J0)
 
 
+## SailfishOS
+
+This branch is the SailfishOS version of the game. It is built for
+Sailfish OS 5.1 on aarch64 and was played on a Jolla C2. The game is the
+2.0 watch version; this section lists what is different.
+
+### On a tall phone screen
+
+- The ship, the blue score ring, the shield diamond and the HUD stay in a
+  centred square as wide as the screen. They keep the proportions of the
+  watch, so the game plays the same around the ship.
+- The asteroid field, the UFO and the shots use the whole screen height.
+  Asteroids drift in from above and below the square too.
+- Speeds are tuned in pixels per frame on a watch. They scale with the
+  screen width, 1.5 times on a 720 px wide phone.
+
+### Only on SailfishOS
+
+- **Playable cover**: swipe the app away and the round keeps running in
+  its tile on the home screen. The button on the tile pauses and resumes.
+
+### Install
+
+Download the RPM from the releases page and install it:
+
+    devel-su pkcon install-local harbour-asteroid-blaster-2.0.0-1.aarch64.rpm
+
+It is aarch64 only. The app runs without sandboxing, so it is for
+sideloading and not a store build. Highscores are stored in
+`~/.config/net.mowerk/harbour-asteroid-blaster/game.ini`.
+
+### Build
+
+With the Sailfish Platform SDK and a 5.1.0.11 aarch64 target:
+
+    mb2 -t SailfishOS-5.1.0.11-aarch64 build
+
+SailfishOS is on Qt 5.6. The port uses versioned imports, Canvas instead
+of `QtQuick.Shapes` for the asteroids and the UFO, inline GLSL shaders,
+and a small `Dims` stand-in. The Teko font and the AsteroidOS logo ship
+with the app.
+
+### Disclosure for the port
+
+The port was written by an LLM overnight, following the asteroid-dodger
+port, with the author's rule for the tall screen. He watched it start on
+his C2 and played it. He has not read the port's code. It was tested on
+one phone.
+
+```
+Disclosure: LLMGD-2 · origin O0 (LLM-ported to the author's tall-screen rule; played once by the author on one Jolla C2; code not read; self-graded)
+LLMGD: v0.2; assurance=A2; flags=T; origin={O0:.7,O1:.3}; origin_headline=O0; scope=port(code+assets+packaging+docs); graded-by=claude-opus-5-5; retrieval=author-side
+```
+
 ## The Smartwatch Angle
 
 Classic Asteroids gives you five buttons and a large screen. A smartwatch gives you an accelerometer, autofire, and a round display that clips your corners. That constraint shaped every design decision in this game.
