@@ -15,8 +15,7 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-import QtQuick
-import QtQuick.Shapes
+import QtQuick 2.6
 
 // UFO — power-up delivery vehicle.
 //
@@ -157,98 +156,39 @@ Item {
     //   DomeTL    = (14.196,  0.186)    DomeTR    = (20.850,  0.186)
     //   FootL     = (11.125, 22.504)    FootR     = (25.900, 22.504)
 
-    Shape {
+    // SailfishOS (Qt 5.6) has no QtQuick.Shapes: the ten line segments of the
+    // saucer are drawn on a Canvas, with the same coordinates as before.
+    Canvas {
+        id: ufoCanvas
         anchors.fill: parent
-
-        // 1 — left leg:           SaucerL → FootL
-        ShapePath {
-            strokeWidth: ufo.dimsFactor * 1
-            strokeColor: ufo.strokeColor
-            fillColor:   "transparent"
-            capStyle:    ShapePath.RoundCap
-            startX:  0.000 * ufo.sc;  startY: 14.962 * ufo.sc
-            PathLine { x: 11.125 * ufo.sc;  y: 22.504 * ufo.sc }
-        }
-        // 2 — feet bar:           FootR → FootL
-        ShapePath {
-            strokeWidth: ufo.dimsFactor * 1
-            strokeColor: ufo.strokeColor
-            fillColor:   "transparent"
-            capStyle:    ShapePath.RoundCap
-            startX: 25.900 * ufo.sc;  startY: 22.504 * ufo.sc
-            PathLine { x: 11.125 * ufo.sc;  y: 22.504 * ufo.sc }
-        }
-        // 3 — right leg:          SaucerR → FootR
-        ShapePath {
-            strokeWidth: ufo.dimsFactor * 1
-            strokeColor: ufo.strokeColor
-            fillColor:   "transparent"
-            capStyle:    ShapePath.RoundCap
-            startX: 35.082 * ufo.sc;  startY: 14.962 * ufo.sc
-            PathLine { x: 25.900 * ufo.sc;  y: 22.504 * ufo.sc }
-        }
-        // 4 — main saucer disk:   SaucerL → SaucerR
-        ShapePath {
-            strokeWidth: ufo.dimsFactor * 1
-            strokeColor: ufo.strokeColor
-            fillColor:   "transparent"
-            capStyle:    ShapePath.RoundCap
-            startX:  0.000 * ufo.sc;  startY: 14.962 * ufo.sc
-            PathLine { x: 35.082 * ufo.sc;  y: 14.962 * ufo.sc }
-        }
-        // 5 — right cockpit wall: CockpitTR → SaucerR
-        ShapePath {
-            strokeWidth: ufo.dimsFactor * 1
-            strokeColor: ufo.strokeColor
-            fillColor:   "transparent"
-            capStyle:    ShapePath.RoundCap
-            startX: 25.184 * ufo.sc;  startY:  7.284 * ufo.sc
-            PathLine { x: 35.082 * ufo.sc;  y: 14.962 * ufo.sc }
-        }
-        // 6 — cockpit roof:       CockpitTL → CockpitTR
-        ShapePath {
-            strokeWidth: ufo.dimsFactor * 1
-            strokeColor: ufo.strokeColor
-            fillColor:   "transparent"
-            capStyle:    ShapePath.RoundCap
-            startX: 10.511 * ufo.sc;  startY:  7.284 * ufo.sc
-            PathLine { x: 25.184 * ufo.sc;  y:  7.284 * ufo.sc }
-        }
-        // 7 — left cockpit wall:  SaucerL → CockpitTL
-        ShapePath {
-            strokeWidth: ufo.dimsFactor * 1
-            strokeColor: ufo.strokeColor
-            fillColor:   "transparent"
-            capStyle:    ShapePath.RoundCap
-            startX:  0.000 * ufo.sc;  startY: 14.962 * ufo.sc
-            PathLine { x: 10.511 * ufo.sc;  y:  7.284 * ufo.sc }
-        }
-        // 8 — right dome wall:    CockpitTR → DomeTR
-        ShapePath {
-            strokeWidth: ufo.dimsFactor * 1
-            strokeColor: ufo.strokeColor
-            fillColor:   "transparent"
-            capStyle:    ShapePath.RoundCap
-            startX: 25.184 * ufo.sc;  startY:  7.284 * ufo.sc
-            PathLine { x: 20.850 * ufo.sc;  y:  0.186 * ufo.sc }
-        }
-        // 9 — dome roof:          DomeTL → DomeTR
-        ShapePath {
-            strokeWidth: ufo.dimsFactor * 1
-            strokeColor: ufo.strokeColor
-            fillColor:   "transparent"
-            capStyle:    ShapePath.RoundCap
-            startX: 14.196 * ufo.sc;  startY:  0.186 * ufo.sc
-            PathLine { x: 20.850 * ufo.sc;  y:  0.186 * ufo.sc }
-        }
-        // 10 — left dome wall:    CockpitTL → DomeTL
-        ShapePath {
-            strokeWidth: ufo.dimsFactor * 1
-            strokeColor: ufo.strokeColor
-            fillColor:   "transparent"
-            capStyle:    ShapePath.RoundCap
-            startX: 10.511 * ufo.sc;  startY:  7.284 * ufo.sc
-            PathLine { x: 14.196 * ufo.sc;  y:  0.186 * ufo.sc }
+        property var segments: [
+            [0.000, 14.962, 11.125, 22.504],
+            [25.900, 22.504, 11.125, 22.504],
+            [35.082, 14.962, 25.900, 22.504],
+            [0.000, 14.962, 35.082, 14.962],
+            [25.184, 7.284, 35.082, 14.962],
+            [10.511, 7.284, 25.184, 7.284],
+            [0.000, 14.962, 10.511, 7.284],
+            [25.184, 7.284, 20.850, 0.186],
+            [14.196, 0.186, 20.850, 0.186],
+            [10.511, 7.284, 14.196, 0.186]
+        ]
+        property color stroke: ufo.strokeColor
+        onStrokeChanged: requestPaint()
+        onWidthChanged: requestPaint()
+        onPaint: {
+            var ctx = getContext("2d")
+            ctx.reset()
+            ctx.strokeStyle = stroke
+            ctx.lineWidth = ufo.dimsFactor * 1
+            ctx.lineCap = "round"
+            ctx.beginPath()
+            for (var i = 0; i < segments.length; i++) {
+                var s = segments[i]
+                ctx.moveTo(s[0] * ufo.sc, s[1] * ufo.sc)
+                ctx.lineTo(s[2] * ufo.sc, s[3] * ufo.sc)
+            }
+            ctx.stroke()
         }
     }
 }

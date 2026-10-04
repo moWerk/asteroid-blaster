@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+X-Nemo-Application-Type=silica-qt5
+Icon=harbour-asteroid-blaster
+Exec=harbour-asteroid-blaster
+Name=Blaster
+Comment=A tilt controlled asteroid shooter
+
+[X-Sailjail]
+# First test build: not sandboxed. A store build needs
+# OrganizationName, ApplicationName and a Permissions list instead.
+Sandboxing=Disabled

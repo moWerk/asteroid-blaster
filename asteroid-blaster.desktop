@@ -1,7 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=Blaster
-Exec=asteroid-blaster
-Icon=asteroid-blaster
-X-Asteroid-Needs-Repaint=true
-Comment=The Asteroid Blaster game

@@ -1,3 +1,4 @@
+pragma Singleton
 /*
  * Copyright (C) 2026 - Timo Könnecke <github.com/moWerk>
  *
@@ -15,29 +16,17 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-import QtQuick
+import QtQuick 2.6
 
-// Self-contained score popup. Set text and color at createObject time.
-// Fades out and self-destructs.
+// Stand-in for the Dims singleton of org.asteroid.controls.
+// On AsteroidOS it scales by the screen. Here the app sets `width` and
+// `height` to the size of the play field before the game is loaded.
+QtObject {
+    property real width: 720
+    property real height: 720
 
-Text {
-    id: particle
-
-    property real dimsFactor: 1
-
-    color: "#00FFFF"
-    font { pixelSize: dimsFactor * 8; family: "Teko"; styleName: "Medium" }
-    opacity: 1.0
-
-    Behavior on opacity {
-        NumberAnimation {
-            duration: 2000
-            easing.type: Easing.InOutQuad
-            onRunningChanged: {
-                if (!running && opacity === 0) particle.destroy()
-            }
-        }
-    }
-
-    Component.onCompleted: { opacity = 0 }
+    // percent of the shorter side
+    function l(number) { return Math.min(width, height) * number / 100 }
+    function w(number) { return width * number / 100 }
+    function h(number) { return height * number / 100 }
 }

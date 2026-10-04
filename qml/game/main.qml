@@ -17,13 +17,12 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-import QtQuick
-import QtSensors
-import Nemo.Ngf
-import QtQuick.Shapes
-import org.asteroid.controls
-import org.asteroid.blaster
-import Nemo.KeepAlive
+import QtQuick 2.6
+import QtSensors 5.2
+import Nemo.Ngf 1.0
+import "."
+import org.asteroid.blaster 1.0
+import Nemo.KeepAlive 1.2
 
 Item {
     id: root
@@ -97,6 +96,10 @@ Item {
     property int  shield: balance.startingShields
 
     property real dimsFactor: Dims.l(100) / 100
+    // Speeds are tuned in pixels per frame on a watch. Scale them with the
+    // shorter screen side so the game plays the same on a larger screen:
+    // 1.0 at 480 px, 1.5 on a 720 px wide phone.
+    property real speedScale: Dims.l(100) / 480
     property var  activeShots: []
     property var  activeAsteroids: []
     property real lastFrameTime: 0
@@ -124,7 +127,8 @@ Item {
 
     NonGraphicalFeedback {
         id: feedback
-        event: "press"
+        // SailfishOS has no "press" event; "feedback_press" is its short tick
+        event: "feedback_press"
     }
 
     onGameOverChanged: {
@@ -445,7 +449,7 @@ Item {
     
     Component {
         id: asteroidComponent
-        Shape {
+        Item {
             id: asteroid
             property real size: dimsFactor * 20
             property real speed: {
@@ -498,22 +502,28 @@ Item {
                 duration: Math.abs(360 / rotationSpeed) * 800
             }
 
-            ShapePath {
-                strokeWidth: dimsFactor * 1
-                strokeColor: paused ? "#444444" : "white"
-                fillColor:   paused ? "transparent" : "#222222"
-                capStyle:  ShapePath.RoundCap
-                joinStyle: ShapePath.RoundJoin
-                startX: asteroid.asteroidPoints[0].x
-                startY: asteroid.asteroidPoints[0].y
-                PathPolyline {
-                    path: {
-                        var pts = []
-                        for (var i = 0; i < asteroid.asteroidPoints.length; i++)
-                            pts.push(Qt.point(asteroid.asteroidPoints[i].x, asteroid.asteroidPoints[i].y))
-                        pts.push(Qt.point(asteroid.asteroidPoints[0].x, asteroid.asteroidPoints[0].y))
-                        return pts
-                    }
+            // SailfishOS (Qt 5.6) has no QtQuick.Shapes: the outline is drawn
+            // once on a Canvas and repainted only when the pause look changes.
+            Canvas {
+                id: asteroidCanvas
+                anchors.fill: parent
+                property bool dim: paused
+                onDimChanged: requestPaint()
+                onPaint: {
+                    var ctx = getContext("2d")
+                    ctx.reset()
+                    var pts = asteroid.asteroidPoints
+                    ctx.lineWidth = dimsFactor * 1
+                    ctx.lineCap = "round"
+                    ctx.lineJoin = "round"
+                    ctx.strokeStyle = dim ? "#444444" : "white"
+                    ctx.fillStyle = "#222222"
+                    ctx.beginPath()
+                    ctx.moveTo(pts[0].x, pts[0].y)
+                    for (var i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y)
+                    ctx.closePath()
+                    if (!dim) ctx.fill()
+                    ctx.stroke()
                 }
             }
 
@@ -628,30 +638,22 @@ Item {
                     id: player
                     width:  dimsFactor * 10
                     height: dimsFactor * 10
-                    source: "file:///usr/share/asteroid-launcher/watchfaces-img/asteroid-logo.svg"
+                    source: "img/asteroid-logo.png"
                     anchors.centerIn: parent
                     rotation: playerRotation
                 }
 
-                Shape {
+                // never drawn; only its geometry is used
+                Item {
                     id: playerHitbox
                     width:  dimsFactor * 10
                     height: dimsFactor * 10
                     anchors.centerIn: parent
                     visible: false
                     rotation: playerRotation
-                    ShapePath {
-                        strokeWidth: -1
-                        fillColor: "transparent"
-                        startX: dimsFactor * 5; startY: 0
-                        PathLine { x: dimsFactor * 10; y: dimsFactor * 5 }
-                        PathLine { x: dimsFactor * 5;  y: dimsFactor * 10 }
-                        PathLine { x: 0;               y: dimsFactor * 5 }
-                        PathLine { x: dimsFactor * 5;  y: 0 }
-                    }
                 }
 
-                Shape {
+                Item {
                     id: shieldHitbox
                     width:  dimsFactor * 14
                     height: dimsFactor * 14
@@ -662,15 +664,15 @@ Item {
                     : shield === 2 ? 0.6
                     : shield === 1 ? 0.4 : 0.0
                     rotation: playerRotation
-                    ShapePath {
-                        strokeWidth: 2
-                        strokeColor: "#DD1155"
-                        fillColor:   "transparent"
-                        startX: dimsFactor * 7; startY: 0
-                        PathLine { x: dimsFactor * 14; y: dimsFactor * 7 }
-                        PathLine { x: dimsFactor * 7;  y: dimsFactor * 14 }
-                        PathLine { x: 0;               y: dimsFactor * 7 }
-                        PathLine { x: dimsFactor * 7;  y: 0 }
+                    // diamond outline = square rotated by 45 degrees
+                    Rectangle {
+                        anchors.centerIn: parent
+                        width: parent.width / Math.SQRT2
+                        height: width
+                        rotation: 45
+                        color: "transparent"
+                        border.width: 2
+                        border.color: "#DD1155"
                     }
                 }
             }
@@ -685,147 +687,157 @@ Item {
                 anchors.fill: parent
             }
 
-            // ── HUD
-
-            Text {
-                id: levelNumber
-                text: level
-                color: "#00FFFF"
-                font { pixelSize: dimsFactor * 12; family: "Teko"; styleName: "SemiBold" }
-                anchors { top: root.top; horizontalCenter: parent.horizontalCenter }
-                visible: !calibrating
-                
-                SequentialAnimation {
-                    id: levelColorAnim
-                    ColorAnimation { target: levelNumber; property: "color"; to: "#FFAA00"; duration: 200 }
-                    ColorAnimation { target: levelNumber; property: "color"; to: "#00FFFF"; duration: 800 }
-                }
-            }
-
+            // SailfishOS: the HUD is laid out for a square watch screen. On a
+            // tall phone it stays in a centred square as wide as the screen;
+            // only the asteroid field uses the full height.
             Item {
-                id: powerupBarContainer
-                width: dimsFactor * 40
-                height: dimsFactor * 3
-                anchors {
-                    top: levelNumber.bottom
-                    topMargin: -dimsFactor * 1.4
-                    horizontalCenter: parent.horizontalCenter
-                }
-                visible: !calibrating && !gameOver && activePowerup !== "" && activePowerup !== "shield"
-                opacity: 0
+                id: hudSquare
+                width: parent.width
+                height: Math.min(parent.width, parent.height)
+                anchors.centerIn: parent
+
+                // ── HUD
+
+                Text {
+                    id: levelNumber
+                    text: level
+                    color: "#00FFFF"
+                    font { pixelSize: dimsFactor * 12; family: "Teko"; styleName: "SemiBold" }
+                    anchors { top: parent.top; horizontalCenter: parent.horizontalCenter }
+                    visible: !calibrating
                 
-                SequentialAnimation {
-                    id: barOpacityAnim
-                    NumberAnimation { target: powerupBarContainer; property: "opacity"; to: 1.0; duration: 200; easing.type: Easing.InQuad }
-                    PauseAnimation  { duration: balance.powerupDuration - 1200 }
-                    NumberAnimation { target: powerupBarContainer; property: "opacity"; to: 0.0; duration: 1000; easing.type: Easing.InQuad }
-                }
-                
-                Rectangle {
-                    anchors.fill: parent
-                    radius: height / 2
-                    color: Qt.rgba(1, 1, 1, 0.15)
+                    SequentialAnimation {
+                        id: levelColorAnim
+                        ColorAnimation { target: levelNumber; property: "color"; to: "#FFAA00"; duration: 200 }
+                        ColorAnimation { target: levelNumber; property: "color"; to: "#00FFFF"; duration: 800 }
+                    }
                 }
 
-                Rectangle {
-                    id: powerupBarFill
-                    width: powerupBarContainer.width
-                    height: parent.height
-                    radius: height / 2
+                Item {
+                    id: powerupBarContainer
+                    width: dimsFactor * 40
+                    height: dimsFactor * 3
+                    anchors {
+                        top: levelNumber.bottom
+                        topMargin: -dimsFactor * 1.4
+                        horizontalCenter: parent.horizontalCenter
+                    }
+                    visible: !calibrating && !gameOver && activePowerup !== "" && activePowerup !== "shield"
+                    opacity: 0
+                
+                    SequentialAnimation {
+                        id: barOpacityAnim
+                        NumberAnimation { target: powerupBarContainer; property: "opacity"; to: 1.0; duration: 200; easing.type: Easing.InQuad }
+                        PauseAnimation  { duration: balance.powerupDuration - 1200 }
+                        NumberAnimation { target: powerupBarContainer; property: "opacity"; to: 0.0; duration: 1000; easing.type: Easing.InQuad }
+                    }
+                
+                    Rectangle {
+                        anchors.fill: parent
+                        radius: height / 2
+                        color: Qt.rgba(1, 1, 1, 0.15)
+                    }
+
+                    Rectangle {
+                        id: powerupBarFill
+                        width: powerupBarContainer.width
+                        height: parent.height
+                        radius: height / 2
+                        color: glowColor
+                        Behavior on color { ColorAnimation { duration: 150 } }
+                    }
+
+                    NumberAnimation {
+                        id: powerupBarAnim
+                        target: powerupBarFill
+                        property: "width"
+                        from: powerupBarContainer.width
+                        to: 0
+                        duration: balance.powerupDuration
+                        easing.type: Easing.Linear
+                    }
+                }
+
+                Text {
+                    id: powerupUnlock
+                    text: unlockLabel
+                    color: "white"
+                    font { pixelSize: dimsFactor * 11; family: "Teko"; styleName: "Bold"; letterSpacing: dimsFactor * 0.3 }
+                    anchors {
+                        top: powerupBarContainer.bottom
+                        topMargin: dimsFactor * 4
+                        horizontalCenter: parent.horizontalCenter
+                    }
+                    opacity: 0
+                    visible: !calibrating && !gameOver
+
+                    SequentialAnimation {
+                        id: unlockAnim
+                        NumberAnimation { target: powerupUnlock; property: "opacity"; to: 0.85; duration: 400 }
+                        PauseAnimation  { duration: 1600 }
+                        NumberAnimation { target: powerupUnlock; property: "opacity"; to: 0.0; duration: 1600; easing.type: Easing.InQuad }
+                    }
+                }
+
+                Text {
+                    id: powerupPopup
+                    text: powerupLabel
                     color: glowColor
-                    Behavior on color { ColorAnimation { duration: 150 } }
+                    font { pixelSize: dimsFactor * 14; family: "Teko"; styleName: "Bold"; letterSpacing: dimsFactor * 0.3 }
+                    anchors {
+                        bottom: scoreText.top
+                        bottomMargin: -dimsFactor * 5
+                        horizontalCenter: parent.horizontalCenter
+                    }
+                    opacity: 0
+                    visible: !calibrating && !gameOver
+
+                    SequentialAnimation {
+                        id: popupAnim
+                        NumberAnimation { target: powerupPopup; property: "opacity"; to: 0.8; duration: 100 }
+                        NumberAnimation { target: powerupPopup; property: "opacity"; to: 0.4; duration: 50 }
+                        NumberAnimation { target: powerupPopup; property: "opacity"; to: 0.9; duration: 50 }
+                        NumberAnimation { target: powerupPopup; property: "opacity"; to: 1.0; duration: 50 }
+                        NumberAnimation { target: powerupPopup; property: "opacity"; to: 0.9; duration: 50 }
+                        PauseAnimation  { duration: 2200 }
+                        NumberAnimation { target: powerupPopup; property: "opacity"; to: 0.0; duration: 400; easing.type: Easing.InQuad }
+                    }
                 }
 
-                NumberAnimation {
-                    id: powerupBarAnim
-                    target: powerupBarFill
-                    property: "width"
-                    from: powerupBarContainer.width
-                    to: 0
-                    duration: balance.powerupDuration
-                    easing.type: Easing.Linear
+                Text {
+                    id: scoreText
+                    text: score
+                    color: "#FFAA00"
+                    font { pixelSize: dimsFactor * 13; family: "Teko"; styleName: activePowerup === "frenzy" ? "Medium" : "Light" }
+                    anchors {
+                        bottom: shieldText.top
+                        bottomMargin: -dimsFactor * 8.4
+                        horizontalCenter: parent.horizontalCenter
+                    }
+                    visible: !gameOver && !calibrating
+                    Behavior on color { ColorAnimation { duration: 300 } }
                 }
-            }
 
-            Text {
-                id: powerupUnlock
-                text: unlockLabel
-                color: "white"
-                font { pixelSize: dimsFactor * 11; family: "Teko"; styleName: "Bold"; letterSpacing: dimsFactor * 0.3 }
-                anchors {
-                    top: powerupBarContainer.bottom
-                    topMargin: dimsFactor * 4
-                    horizontalCenter: parent.horizontalCenter
-                }
-                opacity: 0
-                visible: !calibrating && !gameOver
-
-                SequentialAnimation {
-                    id: unlockAnim
-                    NumberAnimation { target: powerupUnlock; property: "opacity"; to: 0.85; duration: 400 }
-                    PauseAnimation  { duration: 1600 }
-                    NumberAnimation { target: powerupUnlock; property: "opacity"; to: 0.0; duration: 1600; easing.type: Easing.InQuad }
-                }
-            }
-
-            Text {
-                id: powerupPopup
-                text: powerupLabel
-                color: glowColor
-                font { pixelSize: dimsFactor * 14; family: "Teko"; styleName: "Bold"; letterSpacing: dimsFactor * 0.3 }
-                anchors {
-                    bottom: scoreText.top
-                    bottomMargin: -dimsFactor * 5
-                    horizontalCenter: parent.horizontalCenter
-                }
-                opacity: 0
-                visible: !calibrating && !gameOver
-
-                SequentialAnimation {
-                    id: popupAnim
-                    NumberAnimation { target: powerupPopup; property: "opacity"; to: 0.8; duration: 100 }
-                    NumberAnimation { target: powerupPopup; property: "opacity"; to: 0.4; duration: 50 }
-                    NumberAnimation { target: powerupPopup; property: "opacity"; to: 0.9; duration: 50 }
-                    NumberAnimation { target: powerupPopup; property: "opacity"; to: 1.0; duration: 50 }
-                    NumberAnimation { target: powerupPopup; property: "opacity"; to: 0.9; duration: 50 }
-                    PauseAnimation  { duration: 2200 }
-                    NumberAnimation { target: powerupPopup; property: "opacity"; to: 0.0; duration: 400; easing.type: Easing.InQuad }
-                }
-            }
-
-            Text {
-                id: scoreText
-                text: score
-                color: "#FFAA00"
-                font { pixelSize: dimsFactor * 13; family: "Teko"; styleName: activePowerup === "frenzy" ? "Medium" : "Light" }
-                anchors {
-                    bottom: shieldText.top
-                    bottomMargin: -dimsFactor * 8.4
-                    horizontalCenter: parent.horizontalCenter
-                }
-                visible: !gameOver && !calibrating
-                Behavior on color { ColorAnimation { duration: 300 } }
-            }
-
-            Text {
-                id: shieldText
-                text: shield
-                color: "#DD1155"
-                opacity: shield > 0 ? 1 : 0
-                font { pixelSize: dimsFactor * 12; family: "Teko"; styleName: "SemiBold" }
-                anchors {
-                    bottom: parent.bottom
-                    bottomMargin: -dimsFactor * 5
-                    horizontalCenter: parent.horizontalCenter
-                }
-                visible: !calibrating && !gameOver
+                Text {
+                    id: shieldText
+                    text: shield
+                    color: "#DD1155"
+                    opacity: shield > 0 ? 1 : 0
+                    font { pixelSize: dimsFactor * 12; family: "Teko"; styleName: "SemiBold" }
+                    anchors {
+                        bottom: parent.bottom
+                        bottomMargin: -dimsFactor * 5
+                        horizontalCenter: parent.horizontalCenter
+                    }
+                    visible: !calibrating && !gameOver
                 
-                SequentialAnimation on opacity {
-                    running: shield <= 0
-                    loops:   Animation.Infinite
-                    NumberAnimation { to: 0; duration: 300; easing.type: Easing.InOutQuad }
-                    NumberAnimation { to: 1; duration: 300; easing.type: Easing.InOutQuad }
-                    onRunningChanged: { if (!running) shieldText.opacity = 1 }
+                    SequentialAnimation on opacity {
+                        running: shield <= 0
+                        loops:   Animation.Infinite
+                        NumberAnimation { to: 0; duration: 300; easing.type: Easing.InOutQuad }
+                        NumberAnimation { to: 1; duration: 300; easing.type: Easing.InOutQuad }
+                        onRunningChanged: { if (!running) shieldText.opacity = 1 }
+                    }
                 }
             }
 
@@ -861,7 +873,7 @@ Item {
                         anchors.horizontalCenter: parent.horizontalCenter
                     }
                     Text {
-                        text: "Hold your watch comfy"
+                        text: "Hold your phone comfy"
                         color: "white"
                         font.pixelSize: dimsFactor * 6
                         horizontalAlignment: Text.AlignHCenter
@@ -1061,8 +1073,8 @@ Item {
             var shot = activeShots[si]
             if (!shot) continue
 
-            shot.x += shot.directionX * shot.speed * deltaTime * 60
-            shot.y += shot.directionY * shot.speed * deltaTime * 60
+            shot.x += shot.directionX * shot.speed * speedScale * deltaTime * 60
+            shot.y += shot.directionY * shot.speed * speedScale * deltaTime * 60
 
             if (shot.y <= -shot.height || shot.y >= root.height ||
                 shot.x <= -shot.width  || shot.x >= root.width) {
@@ -1122,8 +1134,8 @@ Item {
                 if (udist < dimsFactor * 4) {
                     obj.currentWaypoint++
                 } else {
-                    obj.x += (udx / udist) * balance.ufoSpeed * deltaTime * 60
-                    obj.y += (udy / udist) * balance.ufoSpeed * deltaTime * 60
+                    obj.x += (udx / udist) * balance.ufoSpeed * speedScale * deltaTime * 60
+                    obj.y += (udy / udist) * balance.ufoSpeed * speedScale * deltaTime * 60
                     obj.directionX = udx / udist
                     obj.directionY = udy / udist
                     obj.speed      = balance.ufoSpeed
@@ -1131,8 +1143,8 @@ Item {
                 continue
             }
 
-            obj.x += obj.directionX * obj.speed * deltaTime * 60
-            obj.y += obj.directionY * obj.speed * deltaTime * 60
+            obj.x += obj.directionX * obj.speed * speedScale * deltaTime * 60
+            obj.y += obj.directionY * obj.speed * speedScale * deltaTime * 60
 
             if      (obj.x > root.width)        obj.x = -obj.width
             else if (obj.x + obj.width  < 0)    obj.x =  root.width
@@ -1631,6 +1643,15 @@ Item {
             a1.x -= nx * push * (m2 / tm);  a1.y -= ny * push * (m2 / tm)
             a2.x += nx * push * (m1 / tm);  a2.y += ny * push * (m1 / tm)
         }
+    }
+
+    // SailfishOS: the app window and the cover pause and resume through
+    // this, and read inPreGame to know when there is no round to pause.
+    readonly property bool inPreGame: calibrating
+    function setPaused(on) {
+        if (gameOver || calibrating) return
+        paused = on
+        pauseText.opacity = on ? 1.0 : 0.0
     }
 
     function restartGame() {

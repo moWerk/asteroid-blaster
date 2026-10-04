@@ -26,13 +26,13 @@ GameStorage::GameStorage(QObject *parent)
     // Explicit path avoids HOME ambiguity in the Lipstick session environment.
     // QSettings creates the directory on first sync() if it does not exist.
     , m_settings(
-          QStandardPaths::writableLocation(QStandardPaths::HomeLocation)
-          + QStringLiteral("/.config/asteroid-blaster/game.ini"),
+          // SailfishOS: the per-app config directory, ~/.config/<org>/<app>/
+          QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation)
+          + QStringLiteral("/game.ini"),
           QSettings::IniFormat)
 {
     QDir().mkpath(
-        QStandardPaths::writableLocation(QStandardPaths::HomeLocation)
-        + QStringLiteral("/.config/asteroid-blaster"));
+        QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation));
     s_instance = this;
 }
 
