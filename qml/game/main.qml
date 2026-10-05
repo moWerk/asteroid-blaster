@@ -19,7 +19,7 @@
 
 import QtQuick 2.6
 import QtSensors 5.2
-import Nemo.Ngf 1.0
+import QtFeedback 5.0
 import "."
 import org.asteroid.blaster 1.0
 import Nemo.KeepAlive 1.2
@@ -125,10 +125,11 @@ Item {
     property string unlockLabel: ""
     property string pendingUnlockType: ""
 
-    NonGraphicalFeedback {
+    // Haptics through QtFeedback's ThemeEffect: Nemo.Ngf is not allowed in
+    // the Jolla Store, ThemeEffect with Press* is.
+    ThemeEffect {
         id: feedback
-        // SailfishOS has no "press" event; "feedback_press" is its short tick
-        event: "feedback_press"
+        effect: ThemeEffect.Press
     }
 
     onGameOverChanged: {
@@ -1057,6 +1058,17 @@ Item {
                     onClicked: { restartGame() }
                 }
             }
+        }
+
+        // Test hook (set from main.cpp): log the sensor once a second
+        Timer {
+            interval: 1000
+            repeat: true
+            running: typeof selftestSensor !== "undefined" && selftestSensor
+            onTriggered: console.log("selftest accelerometer backend=" + accelerometer.connectedToBackend
+                                     + " xyz=" + (accelerometer.reading ? accelerometer.reading.x.toFixed(2) + ","
+                                                   + accelerometer.reading.y.toFixed(2) + ","
+                                                   + accelerometer.reading.z.toFixed(2) : "none"))
         }
 
         Accelerometer {

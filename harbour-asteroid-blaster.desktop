@@ -7,6 +7,8 @@ Name=Blaster
 Comment=A tilt controlled asteroid shooter
 
 [X-Sailjail]
-# First test build: not sandboxed. A store build needs
-# OrganizationName, ApplicationName and a Permissions list instead.
-Sandboxing=Disabled
+# Sandboxed. The game reads the accelerometer (Sensors) and writes only
+# its own config directory, ~/.config/net.mowerk/harbour-asteroid-blaster/.
+OrganizationName=net.mowerk
+ApplicationName=harbour-asteroid-blaster
+Permissions=Sensors

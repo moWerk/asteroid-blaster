@@ -42,6 +42,10 @@ int main(int argc, char *argv[])
             QStringLiteral("qml/game/fonts/Teko-%1.ttf").arg(QLatin1String(style))).toLocalFile());
 
     QScopedPointer<QQuickView> view(SailfishApp::createView());
+    // Test hook: SFOS_SELFTEST_SENSOR=1 logs the accelerometer once a second,
+    // to check that the sensor works inside the sandbox.
+    view->rootContext()->setContextProperty(QStringLiteral("selftestSensor"),
+                                            qEnvironmentVariableIsSet("SFOS_SELFTEST_SENSOR"));
     view->setSource(SailfishApp::pathToMainQml());
     view->show();
 
