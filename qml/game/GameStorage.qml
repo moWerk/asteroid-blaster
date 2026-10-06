@@ -31,19 +31,30 @@ QtObject {
 
     property int highScore: 0
     property int highLevel: 1
+    // free flight keeps its own records; it plays differently
+    property int highScoreFree: 0
+    property int highLevelFree: 1
+    // "idle" (the ship only turns) or "free" (free flight)
+    property string mode: "idle"
+    onModeChanged: if (_ready) _cfg.setValue("mode", mode)
 
     function _keepRecord(key, v, setBack) {
         if (!_ready) return
-        var stored = Number(_cfg.value(key, key === "highLevel" ? 1 : 0))
+        var stored = Number(_cfg.value(key, key.indexOf("highLevel") === 0 ? 1 : 0))
         if (v > stored) _cfg.setValue(key, v)
         else if (v < stored) setBack(stored)
     }
     onHighScoreChanged: _keepRecord("highScore", highScore, function (s) { highScore = s })
     onHighLevelChanged: _keepRecord("highLevel", highLevel, function (s) { highLevel = s })
+    onHighScoreFreeChanged: _keepRecord("highScoreFree", highScoreFree, function (s) { highScoreFree = s })
+    onHighLevelFreeChanged: _keepRecord("highLevelFree", highLevelFree, function (s) { highLevelFree = s })
 
     Component.onCompleted: {
         highScore = Number(_cfg.value("highScore", 0))
         highLevel = Number(_cfg.value("highLevel", 1))
+        highScoreFree = Number(_cfg.value("highScoreFree", 0))
+        highLevelFree = Number(_cfg.value("highLevelFree", 1))
+        mode = String(_cfg.value("mode", "idle"))
         _ready = true
     }
 }

@@ -22,6 +22,7 @@ import QtSensors 5.2
 import QtFeedback 5.0
 import "."
 import Nemo.KeepAlive 1.2
+import Nemo.Configuration 1.0
 
 Item {
     id: root
@@ -82,6 +83,18 @@ Item {
         // Physics
         readonly property real  playerProximityRange:  20
         readonly property real  collisionPushFactor:   0.5
+
+        // Free flight (speeds in asteroid speed units: px per 60 fps frame,
+        // before speedScale; a large asteroid moves 0.27)
+        readonly property real  ffThrust:              1.5    // gained per second at full tilt
+        readonly property real  ffMaxSpeed:            2.0    // also the speed of the widest zoom
+        readonly property real  ffDrag:                0.25   // per second while coasting
+        readonly property real  ffBrake:               2.5    // per second at full back tilt
+        readonly property real  ffTiltDeadzone:        0.5    // m/s² of pitch ignored
+        readonly property real  ffTiltFull:            3.0    // m/s² of pitch for full thrust
+        readonly property real  ffZoomMin:             0.625  // 1.6x view; the world is 2x, so its seam stays hidden
+        readonly property real  ffLeadMax:             0.12   // largest ship offset, share of the screen width
+        readonly property int   ffCountMult:           2      // asteroid counts and caps, for 4x the area
     }
 
     // ── Mutable game state ────────────────────────────────────────────────────
@@ -104,6 +117,8 @@ Item {
     property real lastFrameTime: 0
     property real baselineX: 0
     property real smoothedX: 0
+    property real baselineY: 0
+    property real smoothedY: 0
     property real playerRotation: 0
     property int  initialAsteroidsToSpawn: balance.initialSpawnCount
     property int  asteroidsSpawned: 0
@@ -119,7 +134,7 @@ Item {
     // around. The faster the ship, the further the view zooms out.
     // The world box, in the screen-centred coordinates everything lives in.
     // In idle mode it is exactly the screen, so idle play is unchanged.
-    property bool freeFlight: false
+    property bool freeFlight: GameStorage.mode === "free"
     readonly property real worldLeft: freeFlight ? -root.width  / 2 : 0
     readonly property real worldTop:  freeFlight ? -root.height / 2 : 0
     readonly property real worldW:    freeFlight ? root.width  * 2 : root.width
@@ -151,7 +166,10 @@ Item {
     }
 
     onGameOverChanged: {
-        if (gameOver) {
+        if (gameOver && freeFlight) {
+            GameStorage.highScoreFree = score
+            GameStorage.highLevelFree = level
+        } else if (gameOver) {
             GameStorage.highScore = score
             GameStorage.highLevel = level
         }
@@ -190,8 +208,10 @@ Item {
             var rawX = accelerometer.reading.x
             smoothedX = smoothedX + balance.tiltSmoothing * (rawX - smoothedX)
             var deltaX = (smoothedX - baselineX) * -2
+            if (selftest.active) deltaX = selftest.turn
             playerRotation += deltaX * balance.tiltRotationSpeed * deltaTime
             playerRotation = (playerRotation + 360) % 360
+            if (freeFlight) updateShip(deltaTime)
 
             var currentFps = deltaTime > 0 ? 1 / deltaTime : 60
             lastFps = currentFps
@@ -219,6 +239,9 @@ Item {
             if (calibrationTimer <= 0) {
                 baselineX = accelerometer.reading.x
                 smoothedX = baselineX
+                baselineY = accelerometer.reading.y
+                smoothedY = baselineY
+                console.log("calibrated x " + baselineX.toFixed(2) + " y " + baselineY.toFixed(2) + " free flight " + freeFlight)
                 calibrating = false
                 feedback.play()
             }
@@ -926,6 +949,9 @@ Item {
                     onClicked: {
                         baselineX = accelerometer.reading.x
                         smoothedX = baselineX
+                        baselineY = accelerometer.reading.y
+                        smoothedY = baselineY
+                        console.log("calibrated x " + baselineX.toFixed(2) + " y " + baselineY.toFixed(2) + " free flight " + freeFlight)
                         calibrating = false
                         feedback.play()
                     }
@@ -1055,7 +1081,9 @@ Item {
             }
 
             Text {
-                text: "Highscore: " + GameStorage.highScore + "\nLevel: " + GameStorage.highLevel
+                text: freeFlight
+                      ? "Highscore: " + GameStorage.highScoreFree + "\nLevel: " + GameStorage.highLevelFree
+                      : "Highscore: " + GameStorage.highScore + "\nLevel: " + GameStorage.highLevel
                 horizontalAlignment: Text.AlignHCenter
                 color: "#FFAA00"
                 lineHeightMode: Text.ProportionalHeight
@@ -1105,6 +1133,17 @@ Item {
         Accelerometer {
             id: accelerometer
             active: true
+        }
+
+        // Test hook: dconf keys under /apps/harbour-asteroid-blaster/selftest
+        // (active, thrust 0..1, turn -1..1) steer the ship without tilting,
+        // for checks over ssh. Ignored unless active is set.
+        ConfigurationGroup {
+            id: selftest
+            path: "/apps/harbour-asteroid-blaster/selftest"
+            property bool active: false
+            property real thrust: 0
+            property real turn: 0
         }
     }
 
@@ -1168,11 +1207,16 @@ Item {
                         break
                     }
                 }
+                // free flight: the waypoint path drifts with the world
+                obj.pathOffX -= shipVX * speedScale * deltaTime * 60
+                obj.pathOffY -= shipVY * speedScale * deltaTime * 60
+                obj.x        -= shipVX * speedScale * deltaTime * 60
+                obj.y        -= shipVY * speedScale * deltaTime * 60
                 var wp    = obj.waypoints[obj.currentWaypoint]
                 var ucx   = obj.x + obj.width  / 2
                 var ucy   = obj.y + obj.height / 2
-                var udx   = wp.x - ucx
-                var udy   = wp.y - ucy
+                var udx   = wp.x + obj.pathOffX - ucx
+                var udy   = wp.y + obj.pathOffY - ucy
                 var udist = Math.sqrt(udx * udx + udy * udy)
                 if (udist < dimsFactor * 4) {
                     obj.currentWaypoint++
@@ -1186,8 +1230,8 @@ Item {
                 continue
             }
 
-            obj.x += obj.directionX * obj.speed * speedScale * deltaTime * 60
-            obj.y += obj.directionY * obj.speed * speedScale * deltaTime * 60
+            obj.x += (obj.directionX * obj.speed - shipVX) * speedScale * deltaTime * 60
+            obj.y += (obj.directionY * obj.speed - shipVY) * speedScale * deltaTime * 60
 
             if      (obj.x > worldLeft + worldW)        obj.x = worldLeft - obj.width
             else if (obj.x + obj.width  < worldLeft)    obj.x = worldLeft + worldW
@@ -1214,6 +1258,51 @@ Item {
                 var a2 = activeAsteroids[a2i]
                 if (checkCollision(a1, a2)) handleAsteroidCollision(a1, a2)
             }
+        }
+    }
+
+    // ── Free flight: ship ─────────────────────────────────────────────────────
+
+    // Pitch (the top edge tilted away from the player) thrusts along the
+    // nose, pitching back brakes. Inertia and drag as in the original
+    // Asteroids. The speed sets the lead offset of ship and bonus circle,
+    // and the zoom.
+    function updateShip(dt) {
+        var rawY = accelerometer.reading.y
+        smoothedY = smoothedY + balance.tiltSmoothing * (rawY - smoothedY)
+        var pitch  = baselineY - smoothedY
+        var span   = balance.ffTiltFull - balance.ffTiltDeadzone
+        var thrust = Math.max(0, Math.min(1, (pitch  - balance.ffTiltDeadzone) / span))
+        var brake  = Math.max(0, Math.min(1, (-pitch - balance.ffTiltDeadzone) / span))
+        if (selftest.active) { thrust = selftest.thrust; brake = 0 }
+
+        var rad = playerRotation * Math.PI / 180
+        shipVX += Math.sin(rad) * thrust * balance.ffThrust * dt
+        shipVY -= Math.cos(rad) * thrust * balance.ffThrust * dt
+        var damp = Math.exp(-(balance.ffDrag + brake * balance.ffBrake) * dt)
+        shipVX *= damp
+        shipVY *= damp
+        var v = Math.sqrt(shipVX * shipVX + shipVY * shipVY)
+        if (v > balance.ffMaxSpeed) {
+            shipVX *= balance.ffMaxSpeed / v
+            shipVY *= balance.ffMaxSpeed / v
+            v = balance.ffMaxSpeed
+        }
+
+        var leadMax = balance.ffLeadMax * root.width
+        var k = Math.min(1, dt * 3)
+        leadX += (shipVX / balance.ffMaxSpeed * leadMax - leadX) * k
+        leadY += (shipVY / balance.ffMaxSpeed * leadMax - leadY) * k
+        var zoomTarget = 1 - (v / balance.ffMaxSpeed) * (1 - balance.ffZoomMin)
+        zoom += (zoomTarget - zoom) * Math.min(1, dt * 1.2)
+
+        // explosions and score particles stay where they happened
+        var ox = shipVX * speedScale * dt * 60
+        var oy = shipVY * speedScale * dt * 60
+        var fx = vfxLayer.children
+        for (var i = 0; i < fx.length; i++) {
+            fx[i].x -= ox
+            fx[i].y -= oy
         }
     }
 

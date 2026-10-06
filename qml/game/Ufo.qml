@@ -63,6 +63,9 @@ Item {
     // Absolute screen-space centre coordinates set by spawnUfo() in main.qml
     property var    waypoints:       []
     property int    currentWaypoint: 1
+    // free flight: the whole path drifts with the world (main.qml)
+    property real   pathOffX:        0
+    property real   pathOffY:        0
 
     // ── Power-up state ────────────────────────────────────────────────────────
     // dimmed    — true while power-up is active OR during cooldown.
