@@ -634,6 +634,27 @@ Item {
                 scale: zoom
                 transformOrigin: Item.Center
 
+                // free flight: faint dust that drifts against the flight at
+                // half the speed, so motion shows when no asteroid is near
+                Item {
+                    id: dustLayer
+                    anchors.fill: parent
+                    visible: freeFlight && !calibrating
+                    Repeater {
+                        id: dust
+                        model: freeFlight ? 48 : 0
+                        Rectangle {
+                            width:   dimsFactor * (0.4 + (index % 3) * 0.25)
+                            height:  width
+                            radius:  width / 2
+                            color:   "#7788AA"
+                            opacity: 0.25 + (index % 4) * 0.1
+                            x: worldLeft + Math.random() * worldW
+                            y: worldTop  + Math.random() * worldH
+                        }
+                    }
+                }
+
                 Rectangle {
                     id: scorePerimeter
                     width:  dimsFactor * 55
@@ -1389,6 +1410,15 @@ Item {
         for (var i = 0; i < fx.length; i++) {
             fx[i].x -= ox
             fx[i].y -= oy
+        }
+        for (var di = 0; di < dust.count; di++) {
+            var d = dust.itemAt(di)
+            d.x -= ox * 0.5
+            d.y -= oy * 0.5
+            if      (d.x > worldLeft + worldW) d.x -= worldW
+            else if (d.x < worldLeft)          d.x += worldW
+            if      (d.y > worldTop + worldH)  d.y -= worldH
+            else if (d.y < worldTop)           d.y += worldH
         }
     }
 
