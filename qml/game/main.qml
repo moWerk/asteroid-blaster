@@ -111,6 +111,25 @@ Item {
     property real centerX: root.width  / 2
     property real centerY: root.height / 2
 
+    // ── Free flight (SailfishOS) ──────────────────────────────────────────────
+    // Idle mode: the ship sits in the centre and only turns. Free flight: the
+    // ship has a velocity, and the camera follows it. The ship stays near the
+    // centre; asteroids, the UFO and effects move by their own velocity minus
+    // the ship's, inside a world twice the screen in each direction that wraps
+    // around. The faster the ship, the further the view zooms out.
+    // The world box, in the screen-centred coordinates everything lives in.
+    // In idle mode it is exactly the screen, so idle play is unchanged.
+    property bool freeFlight: false
+    readonly property real worldLeft: freeFlight ? -root.width  / 2 : 0
+    readonly property real worldTop:  freeFlight ? -root.height / 2 : 0
+    readonly property real worldW:    freeFlight ? root.width  * 2 : root.width
+    readonly property real worldH:    freeFlight ? root.height * 2 : root.height
+    property real shipVX: 0           // ship velocity, in asteroid speed units
+    property real shipVY: 0
+    property real leadX: 0            // ship and bonus circle offset from the centre
+    property real leadY: 0
+    property real zoom: 1
+
     // UFO state
     property bool ufoActive: false
     property var  ufoObject: null
@@ -581,110 +600,123 @@ Item {
             id: gameContent
             anchors.fill: parent
 
-            Rectangle {
-                id: scorePerimeter
-                width:  dimsFactor * 55
-                height: dimsFactor * 55
-                radius: dimsFactor * 27.5
-                color: "#010A13"
-                border.color: "#0860C4"
-                border.width: 1
-                anchors.centerIn: parent
-                visible: !calibrating
-                Behavior on border.color { ColorAnimation { duration: 1000; easing.type: Easing.OutQuad } }
-                Behavior on color        { ColorAnimation { duration: 1000; easing.type: Easing.OutQuad } }
-            }
-
-            Timer {
-                id: perimeterFlashTimer
-                interval: 100
-                repeat: false
-                onTriggered: {
-                    scorePerimeter.border.color = "#0860C4"
-                    scorePerimeter.color = "#010A13"
-                }
-            }
-
+            // SailfishOS: the world layers, scaled by the free flight zoom around
+            // the screen centre. The scale is visual only: positions, sizes and
+            // hit tests stay in world units. The HUD stays outside, unscaled.
             Item {
-                id: shotLayer
+                id: worldView
                 anchors.fill: parent
-            }
-
-            Item {
-                id: playerContainer
-                x: root.width  / 2 - player.width  / 2 + dimsFactor * 5
-                y: root.height / 2 - player.height / 2 + dimsFactor * 5
-                visible: !calibrating
+                scale: zoom
+                transformOrigin: Item.Center
 
                 Rectangle {
-                    id: playerGlow
-                    width:   dimsFactor * 22
-                    height:  dimsFactor * 22
-                    radius:  dimsFactor * 11
-                    anchors.centerIn: parent
-                    color:   glowColor
-                    opacity: 0.0
-                    visible: activePowerup !== ""
+                    id: scorePerimeter
+                    width:  dimsFactor * 55
+                    height: dimsFactor * 55
+                    radius: dimsFactor * 27.5
+                    color: "#010A13"
+                    border.color: "#0860C4"
+                    border.width: 1
+                    // follows the ship's lead offset; the double score is measured
+                    // from this circle's centre (handleShotAsteroidCollision)
+                    x: root.width  / 2 - width  / 2 + leadX
+                    y: root.height / 2 - height / 2 + leadY
+                    visible: !calibrating
+                    Behavior on border.color { ColorAnimation { duration: 1000; easing.type: Easing.OutQuad } }
+                    Behavior on color        { ColorAnimation { duration: 1000; easing.type: Easing.OutQuad } }
+                }
 
-                    SequentialAnimation on opacity {
-                        running: activePowerup !== ""
-                        loops:   Animation.Infinite
-                        NumberAnimation { to: 0.55; duration: 500; easing.type: Easing.InOutQuad }
-                        NumberAnimation { to: 0.0;  duration: 500; easing.type: Easing.InOutQuad }
+                Timer {
+                    id: perimeterFlashTimer
+                    interval: 100
+                    repeat: false
+                    onTriggered: {
+                        scorePerimeter.border.color = "#0860C4"
+                        scorePerimeter.color = "#010A13"
                     }
                 }
 
-                Image {
-                    id: player
-                    width:  dimsFactor * 10
-                    height: dimsFactor * 10
-                    source: "img/asteroid-logo.png"
-                    anchors.centerIn: parent
-                    rotation: playerRotation
-                }
-
-                // never drawn; only its geometry is used
                 Item {
-                    id: playerHitbox
-                    width:  dimsFactor * 10
-                    height: dimsFactor * 10
-                    anchors.centerIn: parent
-                    visible: false
-                    rotation: playerRotation
+                    id: shotLayer
+                    anchors.fill: parent
                 }
 
                 Item {
-                    id: shieldHitbox
-                    width:  dimsFactor * 14
-                    height: dimsFactor * 14
-                    anchors.centerIn: parent
-                    visible: shield > 0
-                    opacity: shield >= 4 ? 1.0
-                    : shield === 3 ? 0.8
-                    : shield === 2 ? 0.6
-                    : shield === 1 ? 0.4 : 0.0
-                    rotation: playerRotation
-                    // diamond outline = square rotated by 45 degrees
+                    id: playerContainer
+                    x: root.width  / 2 - player.width  / 2 + dimsFactor * 5 + leadX
+                    y: root.height / 2 - player.height / 2 + dimsFactor * 5 + leadY
+                    visible: !calibrating
+
                     Rectangle {
+                        id: playerGlow
+                        width:   dimsFactor * 22
+                        height:  dimsFactor * 22
+                        radius:  dimsFactor * 11
                         anchors.centerIn: parent
-                        width: parent.width / Math.SQRT2
-                        height: width
-                        rotation: 45
-                        color: "transparent"
-                        border.width: 2
-                        border.color: "#DD1155"
+                        color:   glowColor
+                        opacity: 0.0
+                        visible: activePowerup !== ""
+
+                        SequentialAnimation on opacity {
+                            running: activePowerup !== ""
+                            loops:   Animation.Infinite
+                            NumberAnimation { to: 0.55; duration: 500; easing.type: Easing.InOutQuad }
+                            NumberAnimation { to: 0.0;  duration: 500; easing.type: Easing.InOutQuad }
+                        }
+                    }
+
+                    Image {
+                        id: player
+                        width:  dimsFactor * 10
+                        height: dimsFactor * 10
+                        source: "img/asteroid-logo.png"
+                        anchors.centerIn: parent
+                        rotation: playerRotation
+                    }
+
+                    // never drawn; only its geometry is used
+                    Item {
+                        id: playerHitbox
+                        width:  dimsFactor * 10
+                        height: dimsFactor * 10
+                        anchors.centerIn: parent
+                        visible: false
+                        rotation: playerRotation
+                    }
+
+                    Item {
+                        id: shieldHitbox
+                        width:  dimsFactor * 14
+                        height: dimsFactor * 14
+                        anchors.centerIn: parent
+                        visible: shield > 0
+                        opacity: shield >= 4 ? 1.0
+                        : shield === 3 ? 0.8
+                        : shield === 2 ? 0.6
+                        : shield === 1 ? 0.4 : 0.0
+                        rotation: playerRotation
+                        // diamond outline = square rotated by 45 degrees
+                        Rectangle {
+                            anchors.centerIn: parent
+                            width: parent.width / Math.SQRT2
+                            height: width
+                            rotation: 45
+                            color: "transparent"
+                            border.width: 2
+                            border.color: "#DD1155"
+                        }
                     }
                 }
-            }
 
-            Item {
-                id: asteroidLayer
-                anchors.fill: parent
-            }
+                Item {
+                    id: asteroidLayer
+                    anchors.fill: parent
+                }
 
-            Item {
-                id: vfxLayer
-                anchors.fill: parent
+                Item {
+                    id: vfxLayer
+                    anchors.fill: parent
+                }
             }
 
             // SailfishOS: the HUD is laid out for a square watch screen. On a
@@ -1087,8 +1119,8 @@ Item {
             shot.x += shot.directionX * shot.speed * speedScale * deltaTime * 60
             shot.y += shot.directionY * shot.speed * speedScale * deltaTime * 60
 
-            if (shot.y <= -shot.height || shot.y >= root.height ||
-                shot.x <= -shot.width  || shot.x >= root.width) {
+            if (shot.y <= worldTop  - shot.height || shot.y >= worldTop  + worldH ||
+                shot.x <= worldLeft - shot.width  || shot.x >= worldLeft + worldW) {
                 shot.destroy()
                 activeShots.splice(si, 1)
                 continue
@@ -1157,10 +1189,10 @@ Item {
             obj.x += obj.directionX * obj.speed * speedScale * deltaTime * 60
             obj.y += obj.directionY * obj.speed * speedScale * deltaTime * 60
 
-            if      (obj.x > root.width)        obj.x = -obj.width
-            else if (obj.x + obj.width  < 0)    obj.x =  root.width
-            if      (obj.y > root.height)        obj.y = -obj.height
-            else if (obj.y + obj.height < 0)     obj.y =  root.height
+            if      (obj.x > worldLeft + worldW)        obj.x = worldLeft - obj.width
+            else if (obj.x + obj.width  < worldLeft)    obj.x = worldLeft + worldW
+            if      (obj.y > worldTop + worldH)         obj.y = worldTop - obj.height
+            else if (obj.y + obj.height < worldTop)     obj.y = worldTop + worldH
 
             var playerCenterX   = playerContainer.x + playerHitbox.width  / 2
             var playerCenterY   = playerContainer.y + playerHitbox.height / 2
@@ -1486,8 +1518,8 @@ Item {
         var acx  = asteroid.x + asteroid.width  / 2
         var acy  = asteroid.y + asteroid.height / 2
         var dist = Math.sqrt(
-            Math.pow(acx - root.width  / 2, 2) +
-            Math.pow(acy - root.height / 2, 2)
+            Math.pow(acx - (scorePerimeter.x + scorePerimeter.width  / 2), 2) +
+            Math.pow(acy - (scorePerimeter.y + scorePerimeter.height / 2), 2)
         )
         var inside = dist < dimsFactor * balance.perimeterRadius
         var base   = asteroid.asteroidSize === "small" ? balance.pointsSmall
@@ -1678,8 +1710,11 @@ Item {
         playerRotation   = 0
         initialAsteroidsToSpawn = balance.initialSpawnCount
         asteroidsSpawned = 0
-        playerContainer.x = centerX
-        playerContainer.y = centerY
+        shipVX = 0
+        shipVY = 0
+        leadX  = 0
+        leadY  = 0
+        zoom   = 1
         
         unlockGiftTimer.stop()
         pendingUnlockType = ""
