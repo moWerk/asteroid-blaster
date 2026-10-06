@@ -926,7 +926,7 @@ Item {
                 visible: calibrating
 
                 Text {
-                    text: "v2.0\nAsteroid Blaster"
+                    text: "v2.2\nAsteroid Blaster"
                     color: "#dddddd"
                     lineHeightMode: Text.ProportionalHeight
                     lineHeight: 0.6

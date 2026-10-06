@@ -27,18 +27,58 @@ Sailfish OS 5.1 on aarch64 and was played on a Jolla C2. The game is the
 
 - **Playable cover**: swipe the app away and the round keeps running in
   its tile on the home screen. The button on the tile pauses and resumes.
+- **Free flight mode** (2.2.0), chosen on the start or game over screen,
+  see below.
+
+### Free flight (2.2.0)
+
+On a watch the ship has to stay in the centre: the screen is too small to
+fly around. The phone's screen and a zoom lift that limit, so Blaster has
+a second mode next to the original one, which is now called **Idle**.
+
+- **Steering, the original Asteroids controls on two tilt axes.** Tilt
+  sideways to turn, as in Idle. Tilt the top edge away from you to thrust
+  along the nose; tilt it back towards you to brake. The ship keeps its
+  momentum and slowly drifts to a stop. Firing stays automatic.
+- **The camera follows the ship.** The ship never reaches an edge. It and
+  the blue score ring only lead a little towards where it is heading, by
+  how fast it goes. The flight shows in the asteroids, which come at you
+  faster or fall behind, and in faint dust drifting past.
+- **Zoom.** The faster you fly, the further the view zooms out, up to 1.6
+  times the screen at full speed, so you see more of what is coming.
+- **A world twice the screen** in each direction, wrapping around.
+  Asteroids exist in it before you see them and drift into view. There
+  are twice as many as in Idle, over four times the area.
+- **The score ring travels with the ship.** Kills inside it still count
+  double, measured from where the ring actually is.
+- Free flight keeps its own high score and level.
+
+The mode was designed by the author over three proposals: the camera that
+follows the ship, the small lead offset and the zoom with speed are his.
+All tuning values are in the balance block of `main.qml` (`ff*`) and are
+first guesses waiting for his play testing.
+
+What was checked, and what was not:
+- On a Jolla C2, through a test hook that steers without tilting: the
+  start screen with the selector; flight straight ahead and while turning
+  (the zoom reaches its limit, ship and ring lead towards the heading,
+  asteroids stream past); the dust. No QML warnings. CPU at level 1:
+  idle 88 %, free flight 94 % of one core.
+- Not checked: steering by real tilt, including whether "away" really
+  thrusts and "back" brakes; the selector by tap; the game over screen;
+  later levels; the Jolla 1 and the tablet; how it feels.
 
 ### Install
 
 Download the RPM from the releases page and install it:
 
-    devel-su pkcon install-local harbour-asteroid-blaster-2.0.0-1.aarch64.rpm
+    devel-su pkcon install-local harbour-asteroid-blaster-2.2.0-1.noarch.rpm
 
-It is aarch64 only. The app runs in the SailfishOS sandbox with the
-Sensors permission: the first start from the app grid asks once to allow
-it. Without it the tilt control does not work. The Jolla Store does not
-allow that permission, so this is for Chum and sideloading. Highscores are stored in
-`~/.config/net.mowerk/harbour-asteroid-blaster/game.ini`.
+One package for every SailfishOS device from 3.4 up (see "Pure QML"
+below). The app runs in the sandbox and asks once for the camera, which it
+uses only for the accelerometer (see "Why it asks for the camera").
+Highscores and the chosen mode are kept in dconf under
+`/apps/harbour-asteroid-blaster`.
 
 ### Build
 
