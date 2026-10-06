@@ -47,7 +47,8 @@ a second mode next to the original one, which is now called **Idle**.
 - **Zoom.** The faster you fly, the further the view zooms out, up to 1.6
   times the screen at full speed, so you see more of what is coming.
 - **A world twice the screen** in each direction, wrapping around.
-  Asteroids exist in it before you see them and drift into view. There
+  Asteroids exist in it before you see them and drift into view,
+  preferably from ahead. There
   are twice as many as in Idle, over four times the area.
 - **The score ring travels with the ship.** Kills inside it still count
   double, measured from where the ring actually is.

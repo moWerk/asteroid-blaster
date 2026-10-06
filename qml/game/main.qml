@@ -1633,7 +1633,7 @@ Item {
 
     // Free flight: asteroids exist before they are seen. A new one appears
     // anywhere in the world outside the current view (plus half its size),
-    // mostly ahead of the ship when it is moving, and drifts in from there.
+    // preferably ahead of the ship when it is moving, and drifts in from there.
     function spawnLargeAsteroidInWorld(size) {
         var cx = root.width  / 2
         var cy = root.height / 2
@@ -1658,6 +1658,12 @@ Item {
             x = worldLeft + (((x - worldLeft) % worldW) + worldW) % worldW
             y = worldTop  + (((y - worldTop)  % worldH) + worldH) % worldH
             if (Math.abs(x - cx) > hw || Math.abs(y - cy) > hh) break
+        }
+        // Never inside the view: at full zoom-out the bands beside the view
+        // are narrow, but above and below a tall screen there is always room.
+        if (Math.abs(x - cx) <= hw && Math.abs(y - cy) <= hh) {
+            y = cy + (Math.random() < 0.5 ? -1 : 1) * (hh + size * (0.5 + Math.random()))
+            y = worldTop + (((y - worldTop) % worldH) + worldH) % worldH
         }
         var a = Math.random() * 2 * Math.PI
         activeAsteroids.push(asteroidComponent.createObject(asteroidLayer, {
