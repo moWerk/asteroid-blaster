@@ -1,1 +1,2 @@
 singleton Dims 1.0 Dims.qml
+singleton GameStorage 1.0 GameStorage.qml

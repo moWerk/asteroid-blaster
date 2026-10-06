@@ -2,7 +2,7 @@
 Type=Application
 X-Nemo-Application-Type=silica-qt5
 Icon=harbour-asteroid-blaster
-Exec=harbour-asteroid-blaster
+Exec=sailfish-qml harbour-asteroid-blaster
 Name=Blaster
 Comment=A tilt controlled asteroid shooter
 
