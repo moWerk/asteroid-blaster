@@ -120,7 +120,9 @@ Item {
     property real baselineY: 0
     property real smoothedY: 0
     property real playerRotation: 0
-    property int  initialAsteroidsToSpawn: balance.initialSpawnCount
+    // free flight spreads the asteroids over four times the area
+    readonly property int countMult: freeFlight ? balance.ffCountMult : 1
+    property int  initialAsteroidsToSpawn: balance.initialSpawnCount * countMult
     property int  asteroidsSpawned: 0
 
     property real centerX: root.width  / 2
@@ -571,10 +573,10 @@ Item {
 
             function split() {
                 if (asteroidSize === "large"
-                        && activeAsteroids.filter(function(a) { return !a.isUfo && a.asteroidSize === "mid" }).length < balance.midAsteroidCap) {
+                        && activeAsteroids.filter(function(a) { return !a.isUfo && a.asteroidSize === "mid" }).length < balance.midAsteroidCap * countMult) {
                     spawnSplitAsteroids("mid", dimsFactor * 12, 2, x, y, directionX, directionY)
                 } else if (asteroidSize === "mid"
-                        && activeAsteroids.filter(function(a) { return !a.isUfo && a.asteroidSize === "small" }).length < balance.smallAsteroidCap) {
+                        && activeAsteroids.filter(function(a) { return !a.isUfo && a.asteroidSize === "small" }).length < balance.smallAsteroidCap * countMult) {
                     spawnSplitAsteroids("small", dimsFactor * 6, 2, x, y, directionX, directionY)
                 }
                 destroyAsteroid(this)
@@ -956,6 +958,48 @@ Item {
                         feedback.play()
                     }
                 }
+
+                // SailfishOS: idle (the ship turns, the field comes to it) or
+                // free flight (the ship flies, the camera follows)
+                Item {
+                    anchors { top: calibrationText.bottom; topMargin: dimsFactor * 12; horizontalCenter: parent.horizontalCenter }
+                    width: modeColumn0.width
+                    height: modeColumn0.height
+                    Column {
+                        id: modeColumn0
+                        spacing: dimsFactor * 0.5
+                        Text {
+                            text: freeFlight ? "FREE FLIGHT" : "IDLE"
+                            color: freeFlight ? "#FFAA00" : "#00FFFF"
+                            font { family: "Teko"; pixelSize: dimsFactor * 11; styleName: "SemiBold"; letterSpacing: dimsFactor * 0.3 }
+                            anchors.horizontalCenter: parent.horizontalCenter
+                        }
+                        Text {
+                            text: "tap to switch mode"
+                            color: "#888888"
+                            font.pixelSize: dimsFactor * 5
+                            anchors.horizontalCenter: parent.horizontalCenter
+                        }
+                        Text {
+                            visible: freeFlight
+                            text: "tilt sideways to turn, away to thrust, back to brake"
+                            width: root.width * 0.8
+                            wrapMode: Text.WordWrap
+                            horizontalAlignment: Text.AlignHCenter
+                            color: "#888888"
+                            font.pixelSize: dimsFactor * 5
+                            anchors.horizontalCenter: parent.horizontalCenter
+                        }
+                    }
+                    MouseArea {
+                        anchors.fill: parent
+                        anchors.margins: -dimsFactor * 4
+                        onClicked: {
+                            GameStorage.mode = freeFlight ? "idle" : "free"
+                            calibrationTimer = 3   // a new mode gets a fresh countdown
+                        }
+                    }
+                }
             }
 
             // ── Dimming overlay ───────────────────────────────────────────────
@@ -1097,6 +1141,7 @@ Item {
             }
 
             Rectangle {
+                id: tryAgainButton
                 width: dimsFactor * 50; height: dimsFactor * 19
                 radius: dimsFactor * 2
                 color: "#444444"
@@ -1115,6 +1160,47 @@ Item {
                 MouseArea {
                     anchors.fill: parent
                     onClicked: { restartGame() }
+                }
+            }
+
+            // SailfishOS: idle (the ship turns, the field comes to it) or
+            // free flight (the ship flies, the camera follows)
+            Item {
+                anchors { top: tryAgainButton.bottom; topMargin: dimsFactor * 8; horizontalCenter: parent.horizontalCenter }
+                width: modeColumn1.width
+                height: modeColumn1.height
+                Column {
+                    id: modeColumn1
+                    spacing: dimsFactor * 0.5
+                    Text {
+                        text: freeFlight ? "FREE FLIGHT" : "IDLE"
+                        color: freeFlight ? "#FFAA00" : "#00FFFF"
+                        font { family: "Teko"; pixelSize: dimsFactor * 11; styleName: "SemiBold"; letterSpacing: dimsFactor * 0.3 }
+                        anchors.horizontalCenter: parent.horizontalCenter
+                    }
+                    Text {
+                        text: "tap to switch mode"
+                        color: "#888888"
+                        font.pixelSize: dimsFactor * 5
+                        anchors.horizontalCenter: parent.horizontalCenter
+                    }
+                    Text {
+                        visible: freeFlight
+                        text: "tilt sideways to turn, away to thrust, back to brake"
+                        width: root.width * 0.8
+                        wrapMode: Text.WordWrap
+                        horizontalAlignment: Text.AlignHCenter
+                        color: "#888888"
+                        font.pixelSize: dimsFactor * 5
+                        anchors.horizontalCenter: parent.horizontalCenter
+                    }
+                }
+                MouseArea {
+                    anchors.fill: parent
+                    anchors.margins: -dimsFactor * 4
+                    onClicked: {
+                        GameStorage.mode = freeFlight ? "idle" : "free"
+                    }
                 }
             }
         }
@@ -1309,8 +1395,9 @@ Item {
     // ── UFO ───────────────────────────────────────────────────────────────────
 
     function spawnUfo() {
-        var w    = root.width
-        var h    = root.height
+        // free flight: the path crosses the whole world, not just the screen
+        var w    = worldW
+        var h    = worldH
         var ufoW = ufoSize * 1.5415
         var ufoH = ufoSize
         var side = Math.floor(Math.random() * 4)
@@ -1349,6 +1436,9 @@ Item {
                 Qt.point(w * 0.25,            -ufoH)
             ]
         }
+
+        for (var wi = 0; wi < waypoints.length; wi++)
+            waypoints[wi] = Qt.point(waypoints[wi].x + worldLeft, waypoints[wi].y + worldTop)
 
         var obj = ufoComponent.createObject(asteroidLayer, {
             "x":               waypoints[0].x - ufoW / 2,
@@ -1476,6 +1566,10 @@ Item {
 
     function spawnLargeAsteroid() {
         var size = dimsFactor * 18
+        if (freeFlight) {
+            spawnLargeAsteroidInWorld(size)
+            return
+        }
         var side = Math.floor(Math.random() * 4)
         var spawnX, spawnY, targetX, targetY
         switch (side) {
@@ -1503,6 +1597,43 @@ Item {
             "x": spawnX, "y": spawnY,
             "size": size,
             "directionX": dx / mag, "directionY": dy / mag,
+            "asteroidSize": "large"
+        }))
+    }
+
+    // Free flight: asteroids exist before they are seen. A new one appears
+    // anywhere in the world outside the current view (plus half its size),
+    // mostly ahead of the ship when it is moving, and drifts in from there.
+    function spawnLargeAsteroidInWorld(size) {
+        var cx = root.width  / 2
+        var cy = root.height / 2
+        var hw = root.width  / (2 * zoom) + size / 2
+        var hh = root.height / (2 * zoom) + size / 2
+        var v  = Math.sqrt(shipVX * shipVX + shipVY * shipVY)
+        var x = cx, y = cy
+        for (var tries = 0; tries < 30; tries++) {
+            if (v > 0.3 && Math.random() < 0.7) {
+                // just beyond the view's edge along the heading, spread sideways
+                var ux = shipVX / v, uy = shipVY / v
+                var t  = Math.min(ux !== 0 ? hw / Math.abs(ux) : 1e9,
+                                  uy !== 0 ? hh / Math.abs(uy) : 1e9)
+                var d    = t + size * (0.5 + Math.random())
+                var side = (Math.random() * 2 - 1) * Math.max(hw, hh)
+                x = cx + ux * d - uy * side
+                y = cy + uy * d + ux * side
+            } else {
+                x = worldLeft + Math.random() * worldW
+                y = worldTop  + Math.random() * worldH
+            }
+            x = worldLeft + (((x - worldLeft) % worldW) + worldW) % worldW
+            y = worldTop  + (((y - worldTop)  % worldH) + worldH) % worldH
+            if (Math.abs(x - cx) > hw || Math.abs(y - cy) > hh) break
+        }
+        var a = Math.random() * 2 * Math.PI
+        activeAsteroids.push(asteroidComponent.createObject(asteroidLayer, {
+            "x": x - size / 2, "y": y - size / 2,
+            "size": size,
+            "directionX": Math.cos(a), "directionY": Math.sin(a),
             "asteroidSize": "large"
         }))
     }
@@ -1551,7 +1682,7 @@ Item {
                 unlockAnim.restart()
                 unlockGiftTimer.restart()
             }
-            initialAsteroidsToSpawn = balance.spawnCountBase + level
+            initialAsteroidsToSpawn = (balance.spawnCountBase + level) * countMult
             asteroidsSpawned = 0
             spawnLargeAsteroid()
             asteroidsSpawned++
@@ -1740,9 +1871,12 @@ Item {
     }
 
     function checkCollision(a1, a2) {
+        var reach = (a1.size + a2.size) / 2
         var dx = (a1.x + a1.width  / 2) - (a2.x + a2.width  / 2)
+        if (dx > reach || dx < -reach) return false
         var dy = (a1.y + a1.height / 2) - (a2.y + a2.height / 2)
-        return Math.sqrt(dx * dx + dy * dy) < (a1.size + a2.size) / 2
+        if (dy > reach || dy < -reach) return false
+        return dx * dx + dy * dy < reach * reach
     }
 
     function handleAsteroidCollision(a1, a2) {
@@ -1797,7 +1931,7 @@ Item {
         calibrationTimer = 4
         lastFrameTime    = 0
         playerRotation   = 0
-        initialAsteroidsToSpawn = balance.initialSpawnCount
+        initialAsteroidsToSpawn = balance.initialSpawnCount * countMult
         asteroidsSpawned = 0
         shipVX = 0
         shipVY = 0
