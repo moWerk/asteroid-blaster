@@ -7,6 +7,8 @@ A tilt-controlled asteroid shooter for AsteroidOS smartwatches. Survive escalati
 
 ## SailfishOS
 
+Reviewing the code? Start with [review-and-architecture-hints.md](review-and-architecture-hints.md).
+
 This branch is the SailfishOS version of the game. It is built for
 Sailfish OS 5.1 on aarch64 and was played on a Jolla C2. The game is the
 2.0 watch version; this section lists what is different.
