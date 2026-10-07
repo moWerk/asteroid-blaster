@@ -1,21 +1,12 @@
-# Jolla Store listing: Asteroid Blaster (draft for the author)
+# Jolla Store listing: Asteroid Blaster
 
-Paste into the Harbour app page. The plain text below has no markdown,
-since the store shows plain text.
+In the order of the Harbour form (2026-10-07). Text fields are plain text.
 
-## Name
+## Title (16/30)
 
 Asteroid Blaster
 
-## Category
-
-Games
-
-## Short description
-
-Tilt to steer, blast asteroids, hunt the UFO. Two modes: idle or free flight.
-
-## Long description
+## Description (1102/4000)
 
 A tilt-controlled asteroid shooter, ported from the AsteroidOS smartwatch game.
 
@@ -30,17 +21,44 @@ The app asks for camera access only because that permission includes the motion 
 Open source (GPL-3.0): github.com/moWerk/asteroid-blaster
 The SailfishOS port and the free flight mode were written with an AI assistant, directed and play-tested by the author; the cover art is AI-generated. Details in the repository.
 
-## Screenshots (in this folder)
+## Summary (77/200)
 
-1. screenshot-start-540x960.png (or the 720x1600 one if the form accepts it)
-2. screenshot-action-540x960.png
-3. screenshot-gameover-540x960.png
+Tilt to steer, blast asteroids, hunt the UFO. Two modes: idle or free flight.
 
-## Cover image
+## Recent changes (132/2000)
 
-banner-516x252.jpg
+First release in the Jolla Store: idle mode and the new free flight mode, where the camera follows your ship and the UFO fires back.
 
-## Package
+## Category
 
-harbour-asteroid-blaster-2.2.0-1.noarch.rpm from the GitHub release sfos-v2.2.0;
-rpmvalidation (SailfishOS-5.1.0.11-aarch64) succeeded on 2026-10-07.
+Games
+
+## Binaries
+
+https://github.com/moWerk/asteroid-blaster/releases/download/sfos-v2.2.0/harbour-asteroid-blaster-2.2.0-1.noarch.rpm
+(passed rpmvalidation on the SailfishOS-5.1.0.11-aarch64 target, 2026-10-07)
+
+## Device type
+
+Phone and Tablet (played on the Jolla C2 and the Jolla Tablet)
+
+## Icon (172x172 png)
+
+https://raw.githubusercontent.com/moWerk/asteroid-blaster/sailfishos/store/icon-172x172.png
+
+## Screenshots (1 to 3, at least 1080 px wide)
+
+1. https://raw.githubusercontent.com/moWerk/asteroid-blaster/sailfishos/store/screenshot-start-1080x2400.jpg
+2. https://raw.githubusercontent.com/moWerk/asteroid-blaster/sailfishos/store/screenshot-action-1080x2400.png
+3. https://raw.githubusercontent.com/moWerk/asteroid-blaster/sailfishos/store/screenshot-gameover-1080x2400.jpg
+
+They are the C2's 720 x 1600 screenshots scaled by 1.5 to reach the
+required width.
+
+## Cover image (1080x540)
+
+https://raw.githubusercontent.com/moWerk/asteroid-blaster/sailfishos/store/cover-1080x540.jpg
+
+## YouTube (optional)
+
+https://www.youtube.com/watch?v=Yq3bdBSc5J0 (the AsteroidOS watch version, Blaster 2.0)

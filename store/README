@@ -23,3 +23,9 @@ level 5, score 24380, triple shot active, the UFO at the right edge;
 chosen by the author from a burst of 20 (one every 3 s), unedited (the
 first shot of the burst, so no "screenshot captured" note on it).
 screenshot-action-540x960.png: the same, centre-cropped to 9:16.
+
+The Harbour form of 2026-10-07 asks for screenshots at least 1080 px wide
+and a 1080 x 540 cover image (not the 2013 sizes above):
+screenshot-*-1080x2400.*: the C2 screenshots scaled by 1.5;
+cover-1080x540.jpg: the 2:1 Grok art scaled down; icon-172x172.png: the
+launcher icon. store-listing.md has every form field.
