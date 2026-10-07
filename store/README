@@ -1,0 +1,8 @@
+Store graphics, not part of the package.
+
+banner-516x252.jpg: the Jolla Store's optional "cover image for your Store
+page" (516 x 252, from Jolla's 2013 developer announcement; the current
+upload form was not checked). banner-1032x504.jpg: the same at double size.
+Both cropped from cover art AI-generated with Grok (xAI) in October 2026
+from a prompt written with the author, like qml/game/img/title-art.jpg.
+SailfishOS:Chum has no banner field (icon and screenshots only).

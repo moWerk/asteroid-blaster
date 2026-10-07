@@ -106,6 +106,9 @@ Item {
 
     // ── Mutable game state ────────────────────────────────────────────────────
     property bool calibrating: true
+    // SailfishOS: the start screen waits for ENGAGE before it counts down
+    // (the dconf test hook starts without waiting)
+    property bool engaged: selftest.active
     property int  calibrationTimer: 3
     property bool debugMode: false
     property bool gameOver: false
@@ -242,19 +245,11 @@ Item {
     Timer {
         id: calibrationCountdownTimer
         interval: 1000
-        running: calibrating
+        running: calibrating && engaged
         repeat: true
         onTriggered: {
             calibrationTimer--
-            if (calibrationTimer <= 0) {
-                baselineX = accelerometer.reading.x
-                smoothedX = baselineX
-                baselineY = accelerometer.reading.y
-                smoothedY = baselineY
-                console.log("calibrated x " + baselineX.toFixed(2) + " y " + baselineY.toFixed(2) + " free flight " + freeFlight)
-                calibrating = false
-                feedback.play()
-            }
+            if (calibrationTimer <= 0) finishCalibration()
         }
     }
 
@@ -964,18 +959,26 @@ Item {
                 // SailfishOS: cover art (AI-generated with Grok from the
                 // author's prompt; see img/README). Its action sits in the
                 // middle, so title and controls keep to the calm top and bottom.
+                // Nothing counts down until ENGAGE: the art can be looked at.
                 Image {
                     anchors.fill: parent
                     source: "img/title-art.jpg"
                     fillMode: Image.PreserveAspectCrop
                 }
 
+                // during the countdown, a tap anywhere starts at once
+                MouseArea {
+                    anchors.fill: parent
+                    enabled: calibrating && engaged
+                    onClicked: finishCalibration()
+                }
+
                 Text {
-                    text: "v2.2\nAsteroid Blaster"
+                    text: "Asteroid\nBlaster"
                     color: "#dddddd"
                     lineHeightMode: Text.ProportionalHeight
-                    lineHeight: 0.6
-                    font { family: "Teko"; pixelSize: dimsFactor * 16; styleName: "Medium" }
+                    lineHeight: 0.7
+                    font { family: "Teko"; pixelSize: dimsFactor * 24; styleName: "Medium" }
                     anchors {
                         top: parent.top
                         topMargin: parent.height * 0.06
@@ -984,81 +987,104 @@ Item {
                     horizontalAlignment: Text.AlignHCenter
                 }
 
-                Column {
-                    id: calibrationText
-                    anchors { bottom: modeToggleStart.top; bottomMargin: dimsFactor * 5; horizontalCenter: parent.horizontalCenter }
-                    spacing: dimsFactor * 1
-                    Text {
-                        text: "Calibrating " + calibrationTimer + "s"
-                        color: "white"
-                        font.pixelSize: dimsFactor * 9
-                        horizontalAlignment: Text.AlignHCenter
-                        anchors.horizontalCenter: parent.horizontalCenter
-                    }
-                    Text {
-                        text: "Hold your phone comfy"
-                        color: "white"
-                        font.pixelSize: dimsFactor * 6
-                        horizontalAlignment: Text.AlignHCenter
-                        anchors.horizontalCenter: parent.horizontalCenter
-                    }
+                // Bottom block, built upwards from ENGAGE. Every line has a
+                // fixed height, so text that changes in place never moves.
+                Text {
+                    id: statusLine
+                    anchors { bottom: hintLine.top; bottomMargin: dimsFactor * 1; horizontalCenter: parent.horizontalCenter }
+                    height: dimsFactor * 10
+                    verticalAlignment: Text.AlignVCenter
+                    text: engaged ? "Calibrating " + calibrationTimer + "s" : "Choose your mode"
+                    color: "white"
+                    font.pixelSize: dimsFactor * 8
                 }
-
+                Text {
+                    id: hintLine
+                    anchors { bottom: modeLabel.top; bottomMargin: dimsFactor * 2; horizontalCenter: parent.horizontalCenter }
+                    height: dimsFactor * 6
+                    verticalAlignment: Text.AlignVCenter
+                    text: !engaged ? "tap the mode to switch"
+                          : freeFlight ? "tilt away to thrust, back to brake"
+                          : "hold your phone comfy"
+                    color: "#AAAAAA"
+                    font.pixelSize: dimsFactor * 4.5
+                }
+                // IDLE / MODE and FREE / FLIGHT: same size, same two lines,
+                // so switching swaps the words in place
+                Text {
+                    id: modeLabel
+                    anchors { bottom: modeDescription.top; bottomMargin: dimsFactor * 1; horizontalCenter: parent.horizontalCenter }
+                    height: dimsFactor * 16
+                    verticalAlignment: Text.AlignVCenter
+                    horizontalAlignment: Text.AlignHCenter
+                    text: freeFlight ? "FREE\nFLIGHT" : "IDLE\nMODE"
+                    color: freeFlight ? "#FFAA00" : "#00FFFF"
+                    lineHeightMode: Text.ProportionalHeight
+                    lineHeight: 0.7
+                    font { family: "Teko"; pixelSize: dimsFactor * 11; styleName: "SemiBold"; letterSpacing: dimsFactor * 0.3 }
+                }
+                Text {
+                    id: modeDescription
+                    anchors { bottom: engageButton.top; bottomMargin: dimsFactor * 4; horizontalCenter: parent.horizontalCenter }
+                    height: dimsFactor * 12
+                    verticalAlignment: Text.AlignVCenter
+                    horizontalAlignment: Text.AlignHCenter
+                    text: freeFlight ? "Hunt the UFO\nand asteroids" : "Casual endurance\nblasting fun"
+                    color: "white"
+                    font.pixelSize: dimsFactor * 5
+                }
                 MouseArea {
-                    anchors.fill: parent
-                    enabled: calibrating
-                    onClicked: {
-                        baselineX = accelerometer.reading.x
-                        smoothedX = baselineX
-                        baselineY = accelerometer.reading.y
-                        smoothedY = baselineY
-                        console.log("calibrated x " + baselineX.toFixed(2) + " y " + baselineY.toFixed(2) + " free flight " + freeFlight)
-                        calibrating = false
-                        feedback.play()
-                    }
+                    // label and description together are the mode switch
+                    x: Math.min(modeLabel.x, modeDescription.x) - dimsFactor * 6
+                    y: modeLabel.y - dimsFactor * 2
+                    width: Math.max(modeLabel.width, modeDescription.width) + dimsFactor * 12
+                    height: modeDescription.y + modeDescription.height - modeLabel.y + dimsFactor * 4
+                    enabled: !engaged
+                    onClicked: GameStorage.mode = freeFlight ? "idle" : "free"
                 }
 
-                // SailfishOS: idle (the ship turns, the field comes to it) or
-                // free flight (the ship flies, the camera follows)
-                Item {
-                    id: modeToggleStart
-                    anchors { bottom: parent.bottom; bottomMargin: parent.height * 0.05; horizontalCenter: parent.horizontalCenter }
-                    width: modeColumn0.width
-                    height: modeColumn0.height
-                    Column {
-                        id: modeColumn0
-                        spacing: dimsFactor * 0.5
-                        Text {
-                            text: freeFlight ? "FREE FLIGHT" : "IDLE"
-                            color: freeFlight ? "#FFAA00" : "#00FFFF"
-                            font { family: "Teko"; pixelSize: dimsFactor * 11; styleName: "SemiBold"; letterSpacing: dimsFactor * 0.3 }
-                            anchors.horizontalCenter: parent.horizontalCenter
-                        }
-                        Text {
-                            text: "tap to switch mode"
-                            color: "#888888"
-                            font.pixelSize: dimsFactor * 5
-                            anchors.horizontalCenter: parent.horizontalCenter
-                        }
-                        Text {
-                            visible: freeFlight
-                            text: "tilt sideways to turn, away to thrust, back to brake"
-                            width: root.width * 0.8
-                            wrapMode: Text.WordWrap
-                            horizontalAlignment: Text.AlignHCenter
-                            color: "#888888"
-                            font.pixelSize: dimsFactor * 5
-                            anchors.horizontalCenter: parent.horizontalCenter
-                        }
+                Rectangle {
+                    id: engageButton
+                    width: dimsFactor * 44; height: dimsFactor * 15
+                    radius: dimsFactor * 2
+                    color: "#AA101830"
+                    border.color: freeFlight ? "#FFAA00" : "#00FFFF"
+                    border.width: Math.max(1, dimsFactor * 0.4)
+                    opacity: engaged ? 0.4 : 1.0
+                    anchors {
+                        bottom: parent.bottom
+                        bottomMargin: parent.height * 0.04
+                        horizontalCenter: parent.horizontalCenter
+                    }
+                    Text {
+                        text: "ENGAGE"
+                        color: "white"
+                        font { family: "Teko"; pixelSize: dimsFactor * 10; styleName: "SemiBold"; letterSpacing: dimsFactor * 0.5 }
+                        anchors.centerIn: parent
+                        anchors.verticalCenterOffset: dimsFactor * 0.5
                     }
                     MouseArea {
                         anchors.fill: parent
-                        anchors.margins: -dimsFactor * 4
+                        anchors.margins: -dimsFactor * 3
+                        enabled: !engaged
                         onClicked: {
-                            GameStorage.mode = freeFlight ? "idle" : "free"
-                            calibrationTimer = 3   // a new mode gets a fresh countdown
+                            calibrationTimer = 3
+                            engaged = true
                         }
                     }
+                }
+
+                Text {
+                    text: "v2.2"
+                    color: "#888888"
+                    font.pixelSize: dimsFactor * 3.5
+                    anchors { left: parent.left; leftMargin: dimsFactor * 3; bottom: parent.bottom; bottomMargin: dimsFactor * 2 }
+                }
+                Text {
+                    text: "by moWerk"
+                    color: "#888888"
+                    font.pixelSize: dimsFactor * 3.5
+                    anchors { right: parent.right; rightMargin: dimsFactor * 3; bottom: parent.bottom; bottomMargin: dimsFactor * 2 }
                 }
             }
 
@@ -2080,6 +2106,16 @@ Item {
         if (gameOver || calibrating) return
         paused = on
         pauseText.opacity = on ? 1.0 : 0.0
+    }
+
+    function finishCalibration() {
+        baselineX = accelerometer.reading.x
+        smoothedX = baselineX
+        baselineY = accelerometer.reading.y
+        smoothedY = baselineY
+        console.log("calibrated x " + baselineX.toFixed(2) + " y " + baselineY.toFixed(2) + " free flight " + freeFlight)
+        calibrating = false
+        feedback.play()
     }
 
     function restartGame() {
