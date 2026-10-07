@@ -69,6 +69,19 @@ What was checked, and what was not:
   thrusts and "back" brakes; the selector by tap; the game over screen;
   later levels; the Jolla 1 and the tablet; how it feels.
 
+### Start and game over screens (2.2.0)
+
+The start screen shows cover art and waits: choose the mode by tapping
+it, then ENGAGE starts the calibration countdown. In its last second the
+screen fades into the game. The game over screen shows the same art
+dimmed to half behind score, highscore, Try Again and the mode.
+
+The cover art, and the store banner cut from a wider version of it
+(`store/`), are **AI-generated** with Grok (xAI), from a prompt the
+author and the LLM wrote together in the style of the title art of the
+Asteroid Blaster video. The author chose the result and directed the
+screen layouts.
+
 ### Install
 
 Download the RPM from the releases page and install it:

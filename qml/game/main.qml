@@ -960,6 +960,11 @@ Item {
                 anchors.fill: parent
                 visible: calibrating
 
+                // In the countdown's last second everything but the countdown
+                // fades out, so the start into the game is not a hard cut.
+                property real fade: engaged && calibrationTimer <= 1 ? 0 : 1
+                Behavior on fade { NumberAnimation { duration: 900; easing.type: Easing.InOutQuad } }
+
                 // SailfishOS: cover art (AI-generated with Grok from the
                 // author's prompt; see img/README). Its action sits in the
                 // middle, so title and controls keep to the calm top and bottom.
@@ -968,6 +973,7 @@ Item {
                     anchors.fill: parent
                     source: "img/title-art.jpg"
                     fillMode: Image.PreserveAspectCrop
+                    opacity: calibrationContainer.fade
                 }
 
                 // during the countdown, a tap anywhere starts at once
@@ -980,6 +986,7 @@ Item {
                 Text {
                     text: "Asteroid\nBlaster"
                     color: "#dddddd"
+                    opacity: calibrationContainer.fade
                     lineHeightMode: Text.ProportionalHeight
                     lineHeight: 0.7
                     font { family: "Teko"; pixelSize: dimsFactor * 24; styleName: "Medium" }
@@ -1012,6 +1019,7 @@ Item {
                           : "hold your phone comfy"
                     color: "#AAAAAA"
                     font.pixelSize: dimsFactor * 4.5
+                    opacity: calibrationContainer.fade
                 }
                 // IDLE MODE and FREE FLIGHT: one line, centred in a fixed box,
                 // so switching swaps the words in place
@@ -1023,6 +1031,7 @@ Item {
                     horizontalAlignment: Text.AlignHCenter
                     text: modeName
                     color: modeColor
+                    opacity: calibrationContainer.fade
                     lineHeightMode: Text.ProportionalHeight
                     lineHeight: 0.7
                     font { family: "Teko"; pixelSize: dimsFactor * 11; styleName: "SemiBold"; letterSpacing: dimsFactor * 0.3 }
@@ -1035,6 +1044,7 @@ Item {
                     horizontalAlignment: Text.AlignHCenter
                     text: modeTagline
                     color: "white"
+                    opacity: calibrationContainer.fade
                     font.pixelSize: dimsFactor * 5
                 }
                 MouseArea {
@@ -1054,7 +1064,7 @@ Item {
                     color: "#AA101830"
                     border.color: modeColor
                     border.width: Math.max(1, dimsFactor * 0.4)
-                    opacity: engaged ? 0.4 : 1.0
+                    opacity: (engaged ? 0.4 : 1.0) * calibrationContainer.fade
                     anchors {
                         bottom: parent.bottom
                         bottomMargin: parent.height * 0.04
@@ -1082,12 +1092,14 @@ Item {
                     text: "v2.2"
                     color: "#888888"
                     font.pixelSize: dimsFactor * 3.5
+                    opacity: calibrationContainer.fade
                     anchors { left: parent.left; leftMargin: dimsFactor * 3; bottom: parent.bottom; bottomMargin: dimsFactor * 2 }
                 }
                 Text {
                     text: "by moWerk"
                     color: "#888888"
                     font.pixelSize: dimsFactor * 3.5
+                    opacity: calibrationContainer.fade
                     anchors { right: parent.right; rightMargin: dimsFactor * 3; bottom: parent.bottom; bottomMargin: dimsFactor * 2 }
                 }
             }
