@@ -817,7 +817,7 @@ Item {
                     color: "#00FFFF"
                     font { pixelSize: dimsFactor * 12; family: "Teko"; styleName: "SemiBold" }
                     anchors { top: parent.top; horizontalCenter: parent.horizontalCenter }
-                    visible: !calibrating
+                    visible: !calibrating && !gameOver
                 
                     SequentialAnimation {
                         id: levelColorAnim
