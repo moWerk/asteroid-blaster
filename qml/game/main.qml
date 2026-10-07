@@ -148,6 +148,10 @@ Item {
     // The world box, in the screen-centred coordinates everything lives in.
     // In idle mode it is exactly the screen, so idle play is unchanged.
     property bool freeFlight: GameStorage.mode === "free"
+    // the mode as the start and game over screens show it
+    readonly property string modeName:        freeFlight ? "FREE FLIGHT" : "IDLE MODE"
+    readonly property string modeTagline:     freeFlight ? "Hunt the UFO\nand asteroids" : "Casual endurance\nblasting fun"
+    readonly property color  modeColor:       freeFlight ? "#FFAA00" : "#00FFFF"
     readonly property real worldLeft: freeFlight ? -root.width  / 2 : 0
     readonly property real worldTop:  freeFlight ? -root.height / 2 : 0
     readonly property real worldW:    freeFlight ? root.width  * 2 : root.width
@@ -1017,8 +1021,8 @@ Item {
                     height: dimsFactor * 16
                     verticalAlignment: Text.AlignVCenter
                     horizontalAlignment: Text.AlignHCenter
-                    text: freeFlight ? "FREE FLIGHT" : "IDLE MODE"
-                    color: freeFlight ? "#FFAA00" : "#00FFFF"
+                    text: modeName
+                    color: modeColor
                     lineHeightMode: Text.ProportionalHeight
                     lineHeight: 0.7
                     font { family: "Teko"; pixelSize: dimsFactor * 11; styleName: "SemiBold"; letterSpacing: dimsFactor * 0.3 }
@@ -1029,7 +1033,7 @@ Item {
                     height: dimsFactor * 12
                     verticalAlignment: Text.AlignVCenter
                     horizontalAlignment: Text.AlignHCenter
-                    text: freeFlight ? "Hunt the UFO\nand asteroids" : "Casual endurance\nblasting fun"
+                    text: modeTagline
                     color: "white"
                     font.pixelSize: dimsFactor * 5
                 }
@@ -1048,7 +1052,7 @@ Item {
                     width: dimsFactor * 44; height: dimsFactor * 15
                     radius: dimsFactor * 2
                     color: "#AA101830"
-                    border.color: freeFlight ? "#FFAA00" : "#00FFFF"
+                    border.color: modeColor
                     border.width: Math.max(1, dimsFactor * 0.4)
                     opacity: engaged ? 0.4 : 1.0
                     anchors {
@@ -1192,108 +1196,91 @@ Item {
                 opacity: 0.5
             }
 
-            Text {
-                text: "Game Over"
-                color: "#DDFFFFFF"
-                font { pixelSize: dimsFactor * 19; family: "Teko"; styleName: "Medium" }
-                anchors {
-                    bottom: scoreOverText.top
-                    bottomMargin: -dimsFactor * 8
-                    horizontalCenter: parent.horizontalCenter
-                }
-            }
+            // one column, centred as a whole, with even spacing
+            Column {
+                anchors.centerIn: parent
+                spacing: dimsFactor * 7
 
-            Text {
-                id: scoreOverText
-                text: "Score: " + score + "\nLevel: " + level
-                horizontalAlignment: Text.AlignHCenter
-                color: "white"
-                lineHeightMode: Text.ProportionalHeight
-                lineHeight: 0.6
-                font { pixelSize: dimsFactor * 12; family: "Teko"; letterSpacing: dimsFactor * 0.34 }
-                anchors {
-                    bottom: parent.verticalCenter
-                    bottomMargin: dimsFactor * 1
-                    horizontalCenter: parent.horizontalCenter
-                }
-            }
-
-            Text {
-                text: freeFlight
-                      ? "Highscore: " + GameStorage.highScoreFree + "\nLevel: " + GameStorage.highLevelFree
-                      : "Highscore: " + GameStorage.highScore + "\nLevel: " + GameStorage.highLevel
-                horizontalAlignment: Text.AlignHCenter
-                color: "#FFAA00"
-                lineHeightMode: Text.ProportionalHeight
-                lineHeight: 0.6
-                font { pixelSize: dimsFactor * 10.4; family: "Teko"; letterSpacing: dimsFactor * 0.34 }
-                anchors {
-                    top: parent.verticalCenter
-                    topMargin: dimsFactor * 0.8
-                    horizontalCenter: parent.horizontalCenter
-                }
-            }
-
-            Rectangle {
-                id: tryAgainButton
-                width: dimsFactor * 50; height: dimsFactor * 19
-                radius: dimsFactor * 2
-                color: "#444444"
-                anchors {
-                    top: parent.verticalCenter
-                    topMargin: dimsFactor * 24
-                    horizontalCenter: parent.horizontalCenter
-                }
                 Text {
-                    text: "Try Again"
-                    color: "white"
-                    font { pixelSize: dimsFactor * 11; family: "Teko"; styleName: "SemiBold" }
-                    anchors.centerIn: parent
-                    anchors.verticalCenterOffset: dimsFactor * 0.6
+                    text: "Game Over"
+                    color: "#DDFFFFFF"
+                    font { pixelSize: dimsFactor * 19; family: "Teko"; styleName: "Medium" }
+                    anchors.horizontalCenter: parent.horizontalCenter
                 }
-                MouseArea {
-                    anchors.fill: parent
-                    onClicked: { restartGame() }
-                }
-            }
 
-            // SailfishOS: idle (the ship turns, the field comes to it) or
-            // free flight (the ship flies, the camera follows)
-            Item {
-                anchors { top: tryAgainButton.bottom; topMargin: dimsFactor * 8; horizontalCenter: parent.horizontalCenter }
-                width: modeColumn1.width
-                height: modeColumn1.height
-                Column {
-                    id: modeColumn1
-                    spacing: dimsFactor * 0.5
+                Text {
+                    text: "Score: " + score + "\nLevel: " + level
+                    horizontalAlignment: Text.AlignHCenter
+                    color: "white"
+                    lineHeightMode: Text.ProportionalHeight
+                    lineHeight: 0.8
+                    font { pixelSize: dimsFactor * 12; family: "Teko"; letterSpacing: dimsFactor * 0.34 }
+                    anchors.horizontalCenter: parent.horizontalCenter
+                }
+
+                Text {
+                    text: freeFlight
+                          ? "Highscore: " + GameStorage.highScoreFree + "\nLevel: " + GameStorage.highLevelFree
+                          : "Highscore: " + GameStorage.highScore + "\nLevel: " + GameStorage.highLevel
+                    horizontalAlignment: Text.AlignHCenter
+                    color: "#FFAA00"
+                    lineHeightMode: Text.ProportionalHeight
+                    lineHeight: 0.8
+                    font { pixelSize: dimsFactor * 10.4; family: "Teko"; letterSpacing: dimsFactor * 0.34 }
+                    anchors.horizontalCenter: parent.horizontalCenter
+                }
+
+                Rectangle {
+                    id: tryAgainButton
+                    width: dimsFactor * 50; height: dimsFactor * 19
+                    radius: dimsFactor * 2
+                    color: "#444444"
+                    anchors.horizontalCenter: parent.horizontalCenter
                     Text {
-                        text: freeFlight ? "FREE FLIGHT" : "IDLE"
-                        color: freeFlight ? "#FFAA00" : "#00FFFF"
-                        font { family: "Teko"; pixelSize: dimsFactor * 11; styleName: "SemiBold"; letterSpacing: dimsFactor * 0.3 }
-                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: "Try Again"
+                        color: "white"
+                        font { pixelSize: dimsFactor * 11; family: "Teko"; styleName: "SemiBold" }
+                        anchors.centerIn: parent
+                        anchors.verticalCenterOffset: dimsFactor * 0.6
                     }
-                    Text {
-                        text: "tap to switch mode"
-                        color: "#888888"
-                        font.pixelSize: dimsFactor * 5
-                        anchors.horizontalCenter: parent.horizontalCenter
-                    }
-                    Text {
-                        visible: freeFlight
-                        text: "tilt sideways to turn, away to thrust, back to brake"
-                        width: root.width * 0.8
-                        wrapMode: Text.WordWrap
-                        horizontalAlignment: Text.AlignHCenter
-                        color: "#888888"
-                        font.pixelSize: dimsFactor * 5
-                        anchors.horizontalCenter: parent.horizontalCenter
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: { restartGame() }
                     }
                 }
-                MouseArea {
-                    anchors.fill: parent
-                    anchors.margins: -dimsFactor * 4
-                    onClicked: {
-                        GameStorage.mode = freeFlight ? "idle" : "free"
+
+                // the mode, as on the start screen; tap to switch
+                Item {
+                    width: modeBlock.width
+                    height: modeBlock.height
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    Column {
+                        id: modeBlock
+                        spacing: dimsFactor * 2
+                        Text {
+                            text: "tap the mode to switch"
+                            color: "#AAAAAA"
+                            font.pixelSize: dimsFactor * 4.5
+                            anchors.horizontalCenter: parent.horizontalCenter
+                        }
+                        Text {
+                            text: modeName
+                            color: modeColor
+                            font { family: "Teko"; pixelSize: dimsFactor * 11; styleName: "SemiBold"; letterSpacing: dimsFactor * 0.3 }
+                            anchors.horizontalCenter: parent.horizontalCenter
+                        }
+                        Text {
+                            text: modeTagline
+                            horizontalAlignment: Text.AlignHCenter
+                            color: "white"
+                            font.pixelSize: dimsFactor * 5
+                            anchors.horizontalCenter: parent.horizontalCenter
+                        }
+                    }
+                    MouseArea {
+                        anchors.fill: parent
+                        anchors.margins: -dimsFactor * 4
+                        onClicked: GameStorage.mode = freeFlight ? "idle" : "free"
                     }
                 }
             }
