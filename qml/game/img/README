@@ -4,3 +4,8 @@ On a watch the game reads it from the launcher's files. SailfishOS has
 no such file, so it is shipped here.
 asteroid-logo.png: the same, rendered to 512 px, because Qt 5.6 does
 not draw this SVG (it uses <use href>).
+
+title-art.jpg: cover art for the title screen (and, dimmed to half, the
+game over screen). AI-generated with Grok (xAI) in October 2026 from a
+prompt written with the author, in the style of the title art of the
+Asteroid Blaster video; re-encoded to JPEG quality 85, 864 x 1920.

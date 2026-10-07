@@ -675,13 +675,16 @@ Item {
                     visible: freeFlight && !calibrating
                     Repeater {
                         id: dust
-                        model: freeFlight ? 48 : 0
+                        model: freeFlight ? 96 : 0
                         Rectangle {
-                            width:   dimsFactor * (0.4 + (index % 3) * 0.25)
+                            // sizes from a speck to a clear dot; the bigger
+                            // ones read as closer: they drift faster and shine more
+                            readonly property real depth: [0.3, 0.35, 0.4, 0.5, 0.6, 0.75, 0.9, 1.2, 1.6][index % 9] / 1.6
+                            width:   dimsFactor * 1.6 * depth
                             height:  width
                             radius:  width / 2
                             color:   "#7788AA"
-                            opacity: 0.25 + (index % 4) * 0.1
+                            opacity: 0.2 + depth * 0.55
                             x: worldLeft + Math.random() * worldW
                             y: worldTop  + Math.random() * worldH
                         }
@@ -958,6 +961,15 @@ Item {
                 anchors.fill: parent
                 visible: calibrating
 
+                // SailfishOS: cover art (AI-generated with Grok from the
+                // author's prompt; see img/README). Its action sits in the
+                // middle, so title and controls keep to the calm top and bottom.
+                Image {
+                    anchors.fill: parent
+                    source: "img/title-art.jpg"
+                    fillMode: Image.PreserveAspectCrop
+                }
+
                 Text {
                     text: "v2.2\nAsteroid Blaster"
                     color: "#dddddd"
@@ -965,8 +977,8 @@ Item {
                     lineHeight: 0.6
                     font { family: "Teko"; pixelSize: dimsFactor * 16; styleName: "Medium" }
                     anchors {
-                        bottom: calibrationText.top
-                        bottomMargin: dimsFactor * 10
+                        top: parent.top
+                        topMargin: parent.height * 0.06
                         horizontalCenter: parent.horizontalCenter
                     }
                     horizontalAlignment: Text.AlignHCenter
@@ -974,10 +986,10 @@ Item {
 
                 Column {
                     id: calibrationText
-                    anchors { top: parent.verticalCenter; horizontalCenter: parent.horizontalCenter }
+                    anchors { bottom: modeToggleStart.top; bottomMargin: dimsFactor * 5; horizontalCenter: parent.horizontalCenter }
                     spacing: dimsFactor * 1
                     Text {
-                        text: "Calibrating"
+                        text: "Calibrating " + calibrationTimer + "s"
                         color: "white"
                         font.pixelSize: dimsFactor * 9
                         horizontalAlignment: Text.AlignHCenter
@@ -987,13 +999,6 @@ Item {
                         text: "Hold your phone comfy"
                         color: "white"
                         font.pixelSize: dimsFactor * 6
-                        horizontalAlignment: Text.AlignHCenter
-                        anchors.horizontalCenter: parent.horizontalCenter
-                    }
-                    Text {
-                        text: calibrationTimer + "s"
-                        color: "white"
-                        font.pixelSize: dimsFactor * 9
                         horizontalAlignment: Text.AlignHCenter
                         anchors.horizontalCenter: parent.horizontalCenter
                     }
@@ -1016,7 +1021,8 @@ Item {
                 // SailfishOS: idle (the ship turns, the field comes to it) or
                 // free flight (the ship flies, the camera follows)
                 Item {
-                    anchors { top: calibrationText.bottom; topMargin: dimsFactor * 12; horizontalCenter: parent.horizontalCenter }
+                    id: modeToggleStart
+                    anchors { bottom: parent.bottom; bottomMargin: parent.height * 0.05; horizontalCenter: parent.horizontalCenter }
                     width: modeColumn0.width
                     height: modeColumn0.height
                     Column {
@@ -1151,6 +1157,14 @@ Item {
             id: gameOverContainer
             anchors.fill: parent
             visible: gameOver
+
+            // the cover art, dimmed to half (see the title screen)
+            Image {
+                anchors.fill: parent
+                source: "img/title-art.jpg"
+                fillMode: Image.PreserveAspectCrop
+                opacity: 0.5
+            }
 
             Text {
                 text: "Game Over"
@@ -1458,8 +1472,9 @@ Item {
         }
         for (var di = 0; di < dust.count; di++) {
             var d = dust.itemAt(di)
-            d.x -= ox * 0.5
-            d.y -= oy * 0.5
+            var par = 0.3 + d.depth * 0.5
+            d.x -= ox * par
+            d.y -= oy * par
             if      (d.x > worldLeft + worldW) d.x -= worldW
             else if (d.x < worldLeft)          d.x += worldW
             if      (d.y > worldTop + worldH)  d.y -= worldH
