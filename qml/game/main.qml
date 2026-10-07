@@ -1009,7 +1009,7 @@ Item {
                     color: "#AAAAAA"
                     font.pixelSize: dimsFactor * 4.5
                 }
-                // IDLE / MODE and FREE / FLIGHT: same size, same two lines,
+                // IDLE MODE and FREE FLIGHT: one line, centred in a fixed box,
                 // so switching swaps the words in place
                 Text {
                     id: modeLabel
@@ -1017,7 +1017,7 @@ Item {
                     height: dimsFactor * 16
                     verticalAlignment: Text.AlignVCenter
                     horizontalAlignment: Text.AlignHCenter
-                    text: freeFlight ? "FREE\nFLIGHT" : "IDLE\nMODE"
+                    text: freeFlight ? "FREE FLIGHT" : "IDLE MODE"
                     color: freeFlight ? "#FFAA00" : "#00FFFF"
                     lineHeightMode: Text.ProportionalHeight
                     lineHeight: 0.7
