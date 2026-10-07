@@ -35,7 +35,7 @@ Games
 
 ## Binaries
 
-https://github.com/moWerk/asteroid-blaster/releases/download/sfos-v2.2.0/harbour-asteroid-blaster-2.2.0-1.noarch.rpm
+https://github.com/moWerk/asteroid-blaster/releases/download/sfos-v2.2.1/harbour-asteroid-blaster-2.2.1-1.noarch.rpm
 (passed rpmvalidation on the SailfishOS-5.1.0.11-aarch64 target, 2026-10-07)
 
 ## Device type
