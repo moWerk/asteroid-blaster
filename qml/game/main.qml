@@ -95,6 +95,13 @@ Item {
         readonly property real  ffZoomMin:             0.625  // 1.6x view; the world is 2x, so its seam stays hidden
         readonly property real  ffLeadMax:             0.12   // largest ship offset, share of the screen width
         readonly property int   ffCountMult:           2      // asteroid counts and caps, for 4x the area
+
+        // UFO fights back (free flight; as in the original Asteroids)
+        readonly property bool  ufoFiresInIdle:        false
+        readonly property int   ufoFireMult:           10     // fires at a tenth of the player's rate
+        readonly property real  ufoShotSpeed:          4      // half the player's shot speed: dodgeable
+        readonly property real  ufoAimSharp:           2      // degrees of error inside the bonus circle
+        readonly property real  ufoAimLoose:           40     // degrees of error a screen width away
     }
 
     // ── Mutable game state ────────────────────────────────────────────────────
@@ -113,6 +120,7 @@ Item {
     // 1.0 at 480 px, 1.5 on a 720 px wide phone.
     property real speedScale: Dims.l(100) / 480
     property var  activeShots: []
+    property var  ufoShots: []
     property var  activeAsteroids: []
     property real lastFrameTime: 0
     property real baselineX: 0
@@ -367,6 +375,17 @@ Item {
         }
     }
 
+    // The UFO fires back while it is on screen: aimed at where the ship will
+    // be, sharp at close range, loosely in the ship's direction from afar.
+    Timer {
+        id: ufoFireTimer
+        interval: balance.fireInterval * balance.ufoFireMult
+        running: ufoActive && (freeFlight || balance.ufoFiresInIdle)
+                 && !gameOver && !calibrating && !paused && !playerDying
+        repeat: true
+        onTriggered: ufoFire()
+    }
+
     Timer {
         id: ufoSpawnTimer
         interval: balance.ufoSpawnDelay
@@ -442,6 +461,7 @@ Item {
             }
             activeAsteroids = []
             activeShots = []
+            clearUfoShots()
         }
     }
     
@@ -478,6 +498,19 @@ Item {
             property bool   chaining:   false
             property int    generation: 0
             rotation: playerRotation
+        }
+    }
+
+    Component {
+        id: ufoShotComponent
+        Rectangle {
+            width:  dimsFactor * 2
+            height: width
+            radius: width / 2
+            color:  "#FF3355"
+            property real vx: 0     // world velocity, asteroid speed units
+            property real vy: 0
+            property real age: 0
         }
     }
 
@@ -1301,6 +1334,18 @@ Item {
             }
         }
 
+        for (var ui = ufoShots.length - 1; ui >= 0; ui--) {
+            var us = ufoShots[ui]
+            us.x += (us.vx - shipVX) * speedScale * deltaTime * 60
+            us.y += (us.vy - shipVY) * speedScale * deltaTime * 60
+            us.age += deltaTime
+            if (us.age > 4 || hitsShip(us)) {
+                if (us.age <= 4) handleUfoShotHit(us)
+                us.destroy()
+                ufoShots.splice(ui, 1)
+            }
+        }
+
         for (var ai = activeAsteroids.length - 1; ai >= 0; ai--) {
             var obj = activeAsteroids[ai]
             if (!obj) continue
@@ -1479,6 +1524,67 @@ Item {
         activeAsteroids.push(obj)
         ufoObject = obj
         ufoActive = true
+    }
+
+    function ufoFire() {
+        if (!ufoObject || playerDying) return
+        var ux = ufoObject.x + ufoObject.width  / 2
+        var uy = ufoObject.y + ufoObject.height / 2
+        // only while it is on screen: no shots from out of view
+        if (Math.abs(ux - root.width  / 2) > root.width  / (2 * zoom) ||
+            Math.abs(uy - root.height / 2) > root.height / (2 * zoom)) return
+        var sx = playerContainer.x
+        var sy = playerContainer.y
+        var dx = sx - ux, dy = sy - uy
+        var dist = Math.sqrt(dx * dx + dy * dy)
+        if (dist === 0) return
+        // sharp inside the bonus circle, looser the further away
+        var near = dimsFactor * balance.perimeterRadius
+        var f = Math.max(0, Math.min(1, (dist - near) / Math.max(1, root.width - near)))
+        var err = (balance.ufoAimSharp + f * (balance.ufoAimLoose - balance.ufoAimSharp))
+                  * (Math.random() * 2 - 1) * Math.PI / 180
+        var a = Math.atan2(dy, dx) + err
+        // aimed in the ship's frame; the world velocity adds the ship's own,
+        // so the shot hits where the ship would be if it keeps its course
+        var shot = ufoShotComponent.createObject(shotLayer, {
+            "x": ux - dimsFactor, "y": uy - dimsFactor,
+            "vx": Math.cos(a) * balance.ufoShotSpeed + shipVX,
+            "vy": Math.sin(a) * balance.ufoShotSpeed + shipVY
+        })
+        ufoShots.push(shot)
+        if (selftest.active)
+            console.log("selftest ufo fires: distance " + Math.round(dist / dimsFactor)
+                        + " dims, aim error " + (err * 180 / Math.PI).toFixed(1) + " deg")
+    }
+
+    function hitsShip(us) {
+        var ah = (shield > 0) ? shieldHitbox : playerHitbox
+        var px = playerContainer.x + ah.x
+        var py = playerContainer.y + ah.y
+        var cx = us.x + us.width  / 2
+        var cy = us.y + us.height / 2
+        return cx >= px && cx <= px + ah.width && cy >= py && cy <= py + ah.height
+    }
+
+    function handleUfoShotHit(us) {
+        if (shield > 0) {
+            shield -= 1
+            explosionParticleComponent.createObject(vfxLayer, {
+                "x": us.x - dimsFactor * 3, "y": us.y - dimsFactor * 3,
+                "dimsFactor":     dimsFactor,
+                "asteroidSize":   dimsFactor * 4,
+                "explosionColor": "shield"
+            })
+            feedback.play()
+        } else {
+            killPlayer()
+        }
+    }
+
+    function clearUfoShots() {
+        for (var i = 0; i < ufoShots.length; i++)
+            if (ufoShots[i]) ufoShots[i].destroy()
+        ufoShots = []
     }
 
     function destroyUfo() {
@@ -1886,24 +1992,29 @@ Item {
             asteroid.destroy()
             feedback.play()
         } else {
-            playerDying = true
-            asteroidSpawnTimer.stop()
-            ufoSpawnTimer.stop()
-            powerupTimer.stop()
-            ufoCooldownTimer.stop()
-            activePowerup = ""
-            glowColor = "#00000000"
-            deathShaderComponent.createObject(vfxLayer, {
-                "x": playerContainer.x + playerHitbox.x - dimsFactor * 35,
-                "y": playerContainer.y + playerHitbox.y - dimsFactor * 35,
-                "width":     dimsFactor * 80,
-                "height":    dimsFactor * 80,
-                "ringColor": "#FF4400",
-                "autoPlay":  true
-            })
-            deathSequenceTimer.start()
-            feedback.play()
+            killPlayer()
         }
+    }
+
+    function killPlayer() {
+        if (playerDying) return
+        playerDying = true
+        asteroidSpawnTimer.stop()
+        ufoSpawnTimer.stop()
+        powerupTimer.stop()
+        ufoCooldownTimer.stop()
+        activePowerup = ""
+        glowColor = "#00000000"
+        deathShaderComponent.createObject(vfxLayer, {
+            "x": playerContainer.x + playerHitbox.x - dimsFactor * 35,
+            "y": playerContainer.y + playerHitbox.y - dimsFactor * 35,
+            "width":     dimsFactor * 80,
+            "height":    dimsFactor * 80,
+            "ringColor": "#FF4400",
+            "autoPlay":  true
+        })
+        deathSequenceTimer.start()
+        feedback.play()
     }
 
     function checkCollision(a1, a2) {
@@ -1993,6 +2104,7 @@ Item {
         }
         activeShots = []
         activeAsteroids = []
+        clearUfoShots()
 
         asteroidSpawnTimer.restart()
         ufoSpawnTimer.restart()
