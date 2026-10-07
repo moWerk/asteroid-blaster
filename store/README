@@ -12,3 +12,8 @@ Jolla C2 (native resolution), 2026-10-07. screenshot-gameover-540x960.png:
 the same, centre-cropped to 9:16 and scaled to the 540 x 960 the Jolla
 Store asked for in 2013. Taken before the fix that hides the level number
 at game over (the faint "2" above the score).
+
+screenshot-start-720x1600.png: the start screen in free flight on the
+author's C2 (native), 2026-10-07. screenshot-start-540x960.png: the same
+letterboxed into 540 x 960 (scaled to 432 x 960 on a dark navy canvas),
+since a 9:16 crop would cut the title or ENGAGE.
