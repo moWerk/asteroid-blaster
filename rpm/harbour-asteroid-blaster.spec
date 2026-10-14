@@ -23,6 +23,28 @@ BuildRequires:  desktop-file-utils
 Blaster is a game where you turn your ship by tilting the device and
 shoot the asteroids drifting in from every side. Ported from AsteroidOS.
 
+%if 0%{?_chum}
+Title: Blaster
+Type: desktop-application
+DeveloperName: moWerk
+Categories:
+ - Game
+ - ArcadeGame
+ - ActionGame
+Custom:
+  Repo: https://github.com/moWerk/asteroid-blaster
+PackageIcon: https://raw.githubusercontent.com/moWerk/asteroid-blaster/sailfishos/store/icon-172x172.png
+AIRating: V
+AINote: The SailfishOS port was written by an LLM (Claude), directed and play-tested by the author on real devices; every commit carries an LLMGD disclosure line (see the README). The title art is AI-generated.
+Screenshots:
+ - https://raw.githubusercontent.com/moWerk/asteroid-blaster/sailfishos/store/screenshot-start-1080x2400.jpg
+ - https://raw.githubusercontent.com/moWerk/asteroid-blaster/sailfishos/store/screenshot-action-1080x2400.png
+ - https://raw.githubusercontent.com/moWerk/asteroid-blaster/sailfishos/store/screenshot-gameover-1080x2400.jpg
+Links:
+  Homepage: https://github.com/moWerk/asteroid-blaster/tree/sailfishos
+  Bugtracker: https://github.com/moWerk/asteroid-blaster/issues
+%endif
+
 %prep
 %setup -q -n %{name}-%{version}
 
